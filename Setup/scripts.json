@@ -1,0 +1,20 @@
+{
+    "installPath":  "C:\\Tools\\PowerToys",
+    "repoRoot":  "D:\\Projects\\PowerToys",
+    "scripts":  [
+                    {
+                        "id":  "FileOrganizer",
+                        "displayName":  "FileOrganizer",
+                        "description":  "Organize files into folders by extension",
+                        "source":  "FileOrganizer/FileOrganizer.ps1",
+                        "usage":  "FileOrganizer [path] [-WhatIf]"
+                    },
+                    {
+                        "id":  "FileOrganizerAI",
+                        "displayName":  "FileOrganizerAI (experimental)",
+                        "description":  "AI-enhanced organizer using Ollama as fallback",
+                        "source":  "FileOrganizerAI/FileOrganizerAI.ps1",
+                        "usage":  "FileOrganizerAI [-Source path] [-UseAI] [-Model gemma:2b] [-DryRun]"
+                    }
+                ]
+}
