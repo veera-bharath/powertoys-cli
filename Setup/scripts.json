@@ -1,4 +1,4 @@
-{
+﻿{
     "installPath":  "C:\\Tools\\PowerToys",
     "repoRoot":  "D:\\Projects\\PowerToys",
     "scripts":  [
@@ -15,6 +15,13 @@
                         "description":  "AI-enhanced organizer using Ollama as fallback",
                         "source":  "FileOrganizerAI/FileOrganizerAI.ps1",
                         "usage":  "FileOrganizerAI [-Source path] [-UseAI] [-Model gemma:2b] [-DryRun]"
+                    },
+                    {
+                        "id":  "DiskCleaner",
+                        "displayName":  "DiskCleaner",
+                        "description":  "Analyze disk usage by type, find duplicates and large files, delete or organize",
+                        "source":  "DiskCleaner/DiskCleaner.ps1",
+                        "usage":  "DiskCleaner [-Path \u003cpath\u003e]"
                     }
                 ]
 }

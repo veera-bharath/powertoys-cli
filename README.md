@@ -12,6 +12,7 @@ A collection of personal PowerShell utility scripts for Windows automation. Inst
 |---|---|
 | `FileOrganizer` | Sorts files into category folders by extension |
 | `FileOrganizerAI` | Rule-based organizer with optional Ollama AI fallback *(experimental)* |
+| `DiskCleaner` | Analyzes disk usage by file type, finds duplicates and large files, delete or organize |
 
 ---
 
@@ -170,6 +171,68 @@ If the model specified by `-Model` is not installed, the script lists available 
 
 ---
 
+## DiskCleaner
+
+Recursively scans a directory and gives you an interactive menu to analyze, clean, and organize files.
+
+```powershell
+DiskCleaner
+DiskCleaner -Path "C:\Users\Me\Downloads"
+```
+
+### Parameters
+
+| Parameter | Default | Description |
+|---|---|---|
+| `-Path` | Current directory | Directory to analyze |
+
+### Menu
+
+```
+  Analyzed: 1,234 files   Total size: 15.6 GB
+  [!] 45 duplicate groups - 2.3 GB reclaimable
+  [!] Largest file: movie.mkv (4.1 GB)
+
+  1.  File Types      - breakdown by category with size bar
+  2.  Duplicate Files - groups of identical files, wasted space
+  3.  Large Files     - top 20 files by size
+  4.  Organize        - run FileOrganizer on this path
+  R.  Re-scan
+  Q.  Quit
+```
+
+### File Types view
+
+Lists all extension categories (Videos, Images, Documents, Archives, Code, Executables, Others) with file count, total size, and a visual bar. Select a category to browse its files with pagination (18 per page).
+
+### Duplicate Files view
+
+Groups files by SHA256 hash. For each group, shows file count and wasted space (total size minus one copy). Options:
+
+- **`D <group>`** — keep the newest copy, send the rest to Recycle Bin
+- **`<group>`** — inspect individual files in the group and delete selectively
+
+### Large Files view
+
+Top 20 files sorted by size. Same file list interface as File Types.
+
+### File list options (available in all views)
+
+| Input | Action |
+|---|---|
+| `<number>` | Send that file to Recycle Bin (with confirmation) |
+| `O <number>` | Open file location in Explorer |
+| `N` / `P` | Next / previous page |
+| `B` | Back to previous menu |
+
+> All deletions go to the **Recycle Bin** — nothing is permanently deleted without going through the Bin first.
+
+### Organize integration
+
+Option 4 looks for FileOrganizer in your `PATH`, then at `C:\Tools\PowerToys`, then as a sibling script in the repo. If not found, it prints install instructions. If found, offers a **WhatIf preview** before running for real.
+
+---
+
 ## Setup System
 
 The setup is split into two stages so the tool works from anywhere after initial install.
@@ -214,6 +277,10 @@ FileOrganizer/
 FileOrganizerAI/
   FileOrganizerAI.ps1     Rule-based + AI fallback organizer
   FileOrganizerAI.bat     Interactive launcher
+
+DiskCleaner/
+  DiskCleaner.ps1         Disk usage analyzer and cleaner
+  DiskCleaner.bat         Interactive launcher
 
 Setup/
   pt-setup.ps1            Installs selected scripts to PATH location

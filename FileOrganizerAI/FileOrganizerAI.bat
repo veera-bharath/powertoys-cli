@@ -6,7 +6,7 @@ set /p targetPath="Enter directory path to organize (leave blank for current dir
 set /p modelName="Enter Ollama model name (leave blank for default gemma:2b): "
 
 if "%targetPath%"=="" (
-    set "targetPath=%~dp0"
+    set "targetPath=%CD%"
 )
 if "%modelName%"=="" (
     set "modelName=gemma:2b"

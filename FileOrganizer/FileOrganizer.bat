@@ -5,7 +5,7 @@
 set /p targetPath="Enter directory path to organize (leave blank for current dir): "
 
 if "%targetPath%"=="" (
-    set "targetPath=%~dp0"
+    set "targetPath=%CD%"
 )
 
 powershell.exe -ExecutionPolicy Bypass -File "%~dp0FileOrganizer.ps1" -Path "%targetPath%"
