@@ -21,6 +21,10 @@ DiskCleaner/
   DiskCleaner.ps1       # Analyzes disk usage, finds duplicates and large files, delete or organize
   DiskCleaner.bat       # Interactive launcher for the above
 
+AppUninstaller/
+  AppUninstaller.ps1    # Lists installed apps with details, uninstalls interactively
+  AppUninstaller.bat    # Interactive launcher (prompts whether to include Store apps)
+
 LaunchTools/
   LaunchTools.ps1       # Launches Chrome + File Explorer to D:\Projects
   LaunchTools.bat       # Launcher for the above
@@ -45,6 +49,10 @@ powershell -ExecutionPolicy Bypass -File FileOrganizerAI/FileOrganizerAI.ps1 -Us
 # Disk cleaner — analyze, find duplicates/large files, delete or organize
 powershell -ExecutionPolicy Bypass -File DiskCleaner/DiskCleaner.ps1
 powershell -ExecutionPolicy Bypass -File DiskCleaner/DiskCleaner.ps1 -Path "C:\Some\Dir"
+
+# App uninstaller — list and uninstall installed apps interactively
+powershell -ExecutionPolicy Bypass -File AppUninstaller/AppUninstaller.ps1
+powershell -ExecutionPolicy Bypass -File AppUninstaller/AppUninstaller.ps1 -IncludeStore
 
 # Setup — installs scripts to C:\Tools\PowerToys and adds to user PATH
 Setup\Setup.bat
@@ -72,6 +80,21 @@ Setup\Setup.bat
 - Deletions go to Recycle Bin via `Microsoft.VisualBasic.FileIO.FileSystem` — never permanent by default
 - FileOrganizer integration: searches PATH, then `C:\Tools\PowerToys`, then sibling folder; prompts install if missing
 - Menu flow: Main → File Types → file list (paginated, 18/page) | Duplicates | Large Files | Organize
+
+### AppUninstaller.ps1
+- Fully keyboard-driven TUI: Up/Down moves cursor, Left/Right pages, Space multi-selects, Ctrl+U uninstalls, Ctrl+R rescans
+- Renders in-place via `[Console]::SetCursorPosition(0,0)` + fixed-height rows (no flicker); cursor hidden during draw
+- Scans three registry hives for Win32/MSI apps; deduplicates by `Name|Version` key; skips `SystemComponent=1` and Windows update entries
+- `EstimatedSize` (KB) → human-readable size; `InstallDate` parsed from `yyyyMMdd` registry string
+- Last-used detection: builds a prefetch map (`C:\Windows\Prefetch\*.pf` → exe basename → `LastWriteTime`), then matches each app via InstallLocation exes, uninstall string exe, and name heuristics
+- Selection tracked by string key (`Name|Version|Publisher`) in a `HashSet` -- survives filter/sort rebuilds
+- Sort modes: Name / Size / Date / Publisher / Usage (last used); text filter by name or publisher (F to open, C to clear)
+- Uninstall strategy: MSI → `msiexec /X {GUID} /passive`; EXE → launch uninstall string interactively; Store → `Remove-AppxPackage`
+- Confirmation screen shows all selected apps with size and type; requires typing `YES` before proceeding
+- `-IncludeStore` adds AppX packages (`SignatureKind=Store`), excluding core Windows framework packages
+- Auto-elevates to admin on startup via `Start-Process -Verb RunAs` (required for HKLM key deletion and Program Files access)
+- Orphaned entries (registry key present but exe missing on disk): auto-removes the registry key via `$app.RegKeyPath` (stored as `$k.PSPath` during scan) instead of trying to run the missing uninstaller
+- EXE uninstall string parsing: quoted path → token-walk `Test-Path` to handle unquoted paths with spaces → `cmd /c` fallback
 
 ### Setup.ps1
 - Reads `Setup/scripts.json` for the script registry — no hardcoded script list in the PS1

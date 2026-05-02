@@ -1,4 +1,4 @@
-﻿{
+{
     "installPath":  "C:\\Tools\\PowerToys",
     "repoRoot":  "D:\\Projects\\PowerToys",
     "scripts":  [
@@ -21,7 +21,14 @@
                         "displayName":  "DiskCleaner",
                         "description":  "Analyze disk usage by type, find duplicates and large files, delete or organize",
                         "source":  "DiskCleaner/DiskCleaner.ps1",
-                        "usage":  "DiskCleaner [-Path \u003cpath\u003e]"
+                        "usage":  "DiskCleaner [-Path <path>]"
+                    },
+                    {
+                        "id":  "AppUninstaller",
+                        "displayName":  "AppUninstaller",
+                        "description":  "List installed apps with details and uninstall interactively",
+                        "source":  "AppUninstaller/AppUninstaller.ps1",
+                        "usage":  "AppUninstaller [-IncludeStore]"
                     }
                 ]
 }

@@ -13,6 +13,7 @@ A collection of personal PowerShell utility scripts for Windows automation. Inst
 | `FileOrganizer` | Sorts files into category folders by extension |
 | `FileOrganizerAI` | Rule-based organizer with optional Ollama AI fallback *(experimental)* |
 | `DiskCleaner` | Analyzes disk usage by file type, finds duplicates and large files, delete or organize |
+| `AppUninstaller` | Interactive TUI to browse, select, and uninstall installed apps with usage stats |
 
 ---
 
@@ -233,6 +234,66 @@ Option 4 looks for FileOrganizer in your `PATH`, then at `C:\Tools\PowerToys`, t
 
 ---
 
+## AppUninstaller
+
+An interactive terminal UI for browsing and uninstalling installed applications. Fully keyboard-driven — no typing required to navigate.
+
+```powershell
+AppUninstaller
+AppUninstaller -IncludeStore
+```
+
+> Automatically requests admin elevation on launch (required to remove HKLM registry entries and files in Program Files).
+
+### Parameters
+
+| Parameter | Default | Description |
+|---|---|---|
+| `-IncludeStore` | Off | Also list Microsoft Store (AppX) packages |
+
+### Keyboard Controls
+
+| Key | Action |
+|---|---|
+| `Up` / `Down` | Move cursor |
+| `Left` / `Right` | Previous / next page |
+| `Space` | Toggle selection on highlighted app (cursor advances) |
+| `Ctrl+U` | Open uninstall confirmation for all selected apps |
+| `Ctrl+R` | Rescan installed apps |
+| `F` | Open filter prompt (type name or publisher, Enter to apply) |
+| `C` | Clear active filter |
+| `S` | Cycle sort: Name → Size → Date → Publisher → Usage |
+| `Q` | Quit |
+
+### Columns
+
+| Column | Source |
+|---|---|
+| Name | `DisplayName` registry value |
+| Publisher | `Publisher` registry value |
+| Version | `DisplayVersion` registry value |
+| Installed | `InstallDate` registry value (parsed from `yyyyMMdd`) |
+| Size | `EstimatedSize` registry value (converted from KB) |
+| Type | `[MSI]` Windows Installer / `[EXE]` standalone / `[Str]` Store |
+| Last Used | Most recent `LastWriteTime` among matching prefetch files in `C:\Windows\Prefetch\` |
+
+### Uninstall behaviour
+
+| App type | Method |
+|---|---|
+| MSI | `msiexec /X {GUID} /passive` — silent with progress bar, no clicks |
+| EXE | Launches the app's own uninstaller window |
+| Store | `Remove-AppxPackage` — silent background removal |
+| Orphaned entry | Exe no longer on disk → registry entry is cleaned up automatically |
+
+The confirmation screen lists every selected app with its type and size before anything is removed. You must type `YES` (uppercase) to proceed.
+
+### Selection
+
+Selected apps are highlighted in yellow. The count is shown in the header and the hint bar. Multi-select as many apps as you like before pressing `Ctrl+U` to uninstall them in sequence.
+
+---
+
 ## Setup System
 
 The setup is split into two stages so the tool works from anywhere after initial install.
@@ -281,6 +342,10 @@ FileOrganizerAI/
 DiskCleaner/
   DiskCleaner.ps1         Disk usage analyzer and cleaner
   DiskCleaner.bat         Interactive launcher
+
+AppUninstaller/
+  AppUninstaller.ps1      Interactive app uninstaller with keyboard navigation
+  AppUninstaller.bat      Launcher (prompts for Store app inclusion)
 
 Setup/
   pt-setup.ps1            Installs selected scripts to PATH location
