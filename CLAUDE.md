@@ -25,6 +25,10 @@ AppUninstaller/
   AppUninstaller.ps1    # Lists installed apps with details, uninstalls interactively
   AppUninstaller.bat    # Interactive launcher (prompts whether to include Store apps)
 
+PortManager/
+  PortManager.ps1       # Inspect, kill, list, watch, and find free ports
+  port.bat              # Thin launcher (command is "port")
+
 LaunchTools/
   LaunchTools.ps1       # Launches Chrome + File Explorer to D:\Projects
   LaunchTools.bat       # Launcher for the above
@@ -53,6 +57,13 @@ powershell -ExecutionPolicy Bypass -File DiskCleaner/DiskCleaner.ps1 -Path "C:\S
 # App uninstaller — list and uninstall installed apps interactively
 powershell -ExecutionPolicy Bypass -File AppUninstaller/AppUninstaller.ps1
 powershell -ExecutionPolicy Bypass -File AppUninstaller/AppUninstaller.ps1 -IncludeStore
+
+# Port manager — inspect, kill, list, watch ports
+powershell -ExecutionPolicy Bypass -File PortManager/PortManager.ps1 --list
+powershell -ExecutionPolicy Bypass -File PortManager/PortManager.ps1 --get 3000
+powershell -ExecutionPolicy Bypass -File PortManager/PortManager.ps1 --kill 3000
+powershell -ExecutionPolicy Bypass -File PortManager/PortManager.ps1 --watch 3000
+powershell -ExecutionPolicy Bypass -File PortManager/PortManager.ps1 --free
 
 # Setup — installs scripts to C:\Tools\PowerToys and adds to user PATH
 Setup\Setup.bat
@@ -95,6 +106,18 @@ Setup\Setup.bat
 - Auto-elevates to admin on startup via `Start-Process -Verb RunAs` (required for HKLM key deletion and Program Files access)
 - Orphaned entries (registry key present but exe missing on disk): auto-removes the registry key via `$app.RegKeyPath` (stored as `$k.PSPath` during scan) instead of trying to run the missing uninstaller
 - EXE uninstall string parsing: quoted path → token-walk `Test-Path` to handle unquoted paths with spaces → `cmd /c` fallback
+
+### PortManager.ps1
+- Command is `port` (installed as `port.bat` + `port.ps1` via Setup; `id: "port"` in scripts.json)
+- Uses `Get-NetTCPConnection` for TCP state data; enriches with process names via `Get-Process` (PID-cached)
+- Background job (`Start-Job`) powers the spinner -- job fetches connections while main thread animates
+- `--get`: detail card per connection (PID, process, local/remote addr, state), filter by port/pid/name
+- `--kill` / `--fix`: shows detail cards → requires typing `YES` to confirm → `Stop-Process -Force`; `--force` skips prompt; access-denied errors suggest running as Administrator
+- `--list`: table sorted by port; `--range <n>` limits rows; `--port-range <s> <e>` filters by port number
+- `--watch`: polls `Get-NetTCPConnection` every 1s, prints timestamped state lines, Ctrl+C exits
+- `--free`: builds a `HashSet[int]` of used ports, scans the range linearly for the first gap; default range 1024-65535
+- `--json`: any command outputs `ConvertTo-Json` instead of formatted tables
+- Color coding: Green=LISTEN/free, Red=ESTABLISHED, Yellow=TIME_WAIT/CLOSE_WAIT, Gray=other
 
 ### Setup.ps1
 - Reads `Setup/scripts.json` for the script registry — no hardcoded script list in the PS1

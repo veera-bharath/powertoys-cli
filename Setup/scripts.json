@@ -29,6 +29,13 @@
                         "description":  "List installed apps with details and uninstall interactively",
                         "source":  "AppUninstaller/AppUninstaller.ps1",
                         "usage":  "AppUninstaller [-IncludeStore]"
+                    },
+                    {
+                        "id":  "port",
+                        "displayName":  "PortManager",
+                        "description":  "Inspect, kill, list, watch, and find free ports",
+                        "source":  "PortManager/PortManager.ps1",
+                        "usage":  "port --get <port> | --kill <port> | --list | --watch <port> | --free"
                     }
                 ]
 }
