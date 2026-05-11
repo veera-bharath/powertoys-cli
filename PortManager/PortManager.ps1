@@ -12,10 +12,10 @@
     port --fix <port>                      detect + prompt + kill (same as --kill)
     port --list                            list all active TCP connections
     port --list --range <n>                list first N results
-    port --list --portstart <s> --portend <e>  list ports between s and e (inclusive)
+    port --list --s <start> --e <end>          list ports between start and end (inclusive)
     port --watch <port>                       watch port in real-time  (Ctrl+C exits)
     port --free                               find a free port (scans 1024-65535)
-    port --free --portstart <s> --portend <e> find a free port in range
+    port --free --s <start> --e <end>         find a free port in range
     port --json                            JSON output (combine with any command)
 #>
 
@@ -37,8 +37,8 @@ param(
     [string]$Name = '',
     [switch]$Force,
     [int]$Range = 0,
-    [int]$PortStart = 0,
-    [int]$PortEnd   = 0,
+    [int]$S = 0,
+    [int]$E = 0,
     [switch]$Json
 )
 
@@ -455,11 +455,11 @@ function Show-Usage {
     Write-Host '    port --kill <port> --force           skip confirmation'                     -ForegroundColor Gray
     Write-Host '    port --fix <port>                    detect conflict + prompt + kill'        -ForegroundColor Gray
     Write-Host '    port --list                          list all active connections'            -ForegroundColor Gray
-    Write-Host '    port --list --range <n>              list first N results'                       -ForegroundColor Gray
-    Write-Host '    port --list --portstart <s> --portend <e>  list ports between s and e'          -ForegroundColor Gray
-    Write-Host '    port --watch <port>                  watch port in real-time (Ctrl+C exits)'    -ForegroundColor Gray
-    Write-Host '    port --free                          find a free port (1024-65535)'              -ForegroundColor Gray
-    Write-Host '    port --free --portstart <s> --portend <e>  find a free port in range'           -ForegroundColor Gray
+    Write-Host '    port --list --range <n>              list first N results'                -ForegroundColor Gray
+    Write-Host '    port --list --s <start> --e <end>    list ports between start and end'   -ForegroundColor Gray
+    Write-Host '    port --watch <port>                  watch port in real-time (Ctrl+C exits)' -ForegroundColor Gray
+    Write-Host '    port --free                          find a free port (1024-65535)'       -ForegroundColor Gray
+    Write-Host '    port --free --s <start> --e <end>    find a free port in range'           -ForegroundColor Gray
     Write-Host '    port --json                          JSON output for any command'            -ForegroundColor Gray
     Write-Host ''
     Write-Host '  COLOR KEY' -ForegroundColor White
@@ -476,7 +476,7 @@ function Show-Usage {
 
 if     ($Get)          { Invoke-Get   -FilterPort $Port -FilterPid $ProcessId -FilterName $Name }
 elseif ($Kill -or $Fix){ Invoke-Kill  -FilterPort $Port -FilterPid $ProcessId -FilterName $Name -SkipConfirm ([bool]$Force) }
-elseif ($List)         { Invoke-List  -ResultRange $Range -Lo $PortStart -Hi $PortEnd }
+elseif ($List)         { Invoke-List  -ResultRange $Range -Lo $S -Hi $E }
 elseif ($Watch)        { Invoke-Watch -WatchPort $Port }
-elseif ($Free)         { Invoke-Free  -Lo $PortStart -Hi $PortEnd }
+elseif ($Free)         { Invoke-Free  -Lo $S -Hi $E }
 else                   { Show-Usage }
