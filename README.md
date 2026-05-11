@@ -14,6 +14,7 @@ A collection of personal PowerShell utility scripts for Windows automation. Inst
 | `FileOrganizerAI` | Rule-based organizer with optional Ollama AI fallback *(experimental)* |
 | `DiskCleaner` | Analyzes disk usage by file type, finds duplicates and large files, delete or organize |
 | `AppUninstaller` | Interactive TUI to browse, select, and uninstall installed apps with usage stats |
+| `port` | Inspect, kill, list, watch, and find free ports |
 
 ---
 
@@ -294,6 +295,65 @@ Selected apps are highlighted in yellow. The count is shown in the header and th
 
 ---
 
+## PortManager
+
+Inspect, kill, list, watch, and find free TCP ports.
+
+```powershell
+port --get 3000
+port --kill 3000
+port --list
+port --watch 3000
+port --free
+```
+
+### Commands
+
+| Command | Description |
+|---|---|
+| `--get <port>` | Show all connections on a port |
+| `--get --pid <id>` | Show connections by PID |
+| `--get --name <name>` | Show connections by process name |
+| `--kill <port>` | Kill process using a port — prompts `YES` to confirm |
+| `--kill --pid <id>` | Kill by PID |
+| `--kill --name <name>` | Kill by process name |
+| `--kill <port> --force` | Kill without confirmation prompt |
+| `--fix <port>` | Alias for `--kill` — detect conflict, prompt, kill |
+| `--list` | Table of all active TCP connections |
+| `--list --range <n>` | Limit to first N results |
+| `--list --s <start> --e <end>` | Filter by port number range |
+| `--watch <port>` | Poll port every second, print state changes — `Ctrl+C` exits |
+| `--free` | Find the first free port in 1024–65535 |
+| `--free --s <start> --e <end>` | Find a free port in a specific range |
+| `--json` | Output as JSON instead of formatted tables (combine with any command) |
+
+### List output
+
+```
+  PID      PORT    PROCESS                 STATE          LOCAL ADDRESS
+  -------  ------  ----------------------  -------------  ----------------------
+  4        80      System                  Listen         :::80
+  2840     59908   svchost                 Established    192.168.1.7:59908
+  0        60740   Idle                    TimeWait       127.0.0.1:60740
+```
+
+### Color coding
+
+| Color | Meaning |
+|---|---|
+| Green | `Listen` / free port |
+| Red | `Established` (active connection) |
+| Yellow | `TimeWait` / `CloseWait` (closing) |
+| Gray | Other states (`Bound`, etc.) |
+
+### Kill confirmation
+
+`--kill` always shows a detail card before acting and requires typing `YES` in full. Use `--force` to skip the prompt in scripts.
+
+If a kill fails with access denied, the error message suggests re-running as Administrator.
+
+---
+
 ## Setup System
 
 The setup is split into two stages so the tool works from anywhere after initial install.
@@ -346,6 +406,10 @@ DiskCleaner/
 AppUninstaller/
   AppUninstaller.ps1      Interactive app uninstaller with keyboard navigation
   AppUninstaller.bat      Launcher (prompts for Store app inclusion)
+
+PortManager/
+  PortManager.ps1         Port inspector, killer, watcher, and free-port finder
+  port.bat                Thin launcher (command is "port")
 
 Setup/
   pt-setup.ps1            Installs selected scripts to PATH location
