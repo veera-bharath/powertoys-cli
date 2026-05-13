@@ -1,0 +1,114 @@
+{
+    "version": "1.0.0",
+    "commands": [
+        {
+            "name": "file-organizer",
+            "version": "1.0.0",
+            "aliases": [ "fo", "organize" ],
+            "displayName": "FileOrganizer",
+            "description": "Organize files into category folders by extension",
+            "script": "lib/file-organizer.ps1",
+            "usage": "pt file-organizer [-Path <path>] [-WhatIf]",
+            "help": [
+                "Organizes root-level files in a directory into categorized subfolders",
+                "based on file extension (Images, Videos, Documents, Audio, etc.).",
+                "",
+                "  -Path <path>   Directory to organize. Default: current directory.",
+                "  -WhatIf        Preview what would move without making any changes.",
+                "",
+                "Handles filename collisions by appending _2, _3, ... instead of overwriting."
+            ]
+        },
+        {
+            "name": "file-organizer-ai",
+            "version": "1.0.0",
+            "aliases": [ "foai" ],
+            "displayName": "FileOrganizerAI",
+            "description": "AI-enhanced organizer with Ollama fallback (experimental)",
+            "script": "lib/file-organizer-ai.ps1",
+            "usage": "pt file-organizer-ai [-Source <path>] [-UseAI] [-Model <model>] [-DryRun]",
+            "help": [
+                "Classifies files using keyword rules first, then extension map,",
+                "with optional Ollama AI as a final fallback for unmatched files.",
+                "",
+                "  -Source <path>   Directory to organize. Default: current directory.",
+                "  -UseAI           Enable Ollama AI fallback (requires Ollama installed).",
+                "  -Model <model>   Ollama model name. Default: gemma:2b.",
+                "  -DryRun          Preview without moving files.",
+                "",
+                "Outputs organizer.log and organizer-metadata.json to the destination folder."
+            ]
+        },
+        {
+            "name": "disk-cleaner",
+            "version": "1.0.0",
+            "aliases": [ "dc", "clean" ],
+            "displayName": "DiskCleaner",
+            "description": "Analyze disk usage, find duplicates and large files",
+            "script": "lib/disk-cleaner.ps1",
+            "usage": "pt disk-cleaner [-Path <path>]",
+            "help": [
+                "Interactive TUI for analyzing disk usage. Groups files by type,",
+                "finds duplicates (SHA256), and surfaces large files.",
+                "",
+                "  -Path <path>   Directory to scan. Default: current directory.",
+                "",
+                "Deletions go to the Recycle Bin -- nothing is permanently removed."
+            ]
+        },
+        {
+            "name": "app-uninstaller",
+            "version": "1.0.0",
+            "aliases": [ "au", "apps" ],
+            "displayName": "AppUninstaller",
+            "description": "List installed apps and uninstall interactively",
+            "script": "lib/app-uninstaller.ps1",
+            "usage": "pt app-uninstaller [-IncludeStore]",
+            "help": [
+                "Keyboard-driven TUI listing all installed Win32/MSI apps with size,",
+                "install date, publisher, and last-used time.",
+                "",
+                "  -IncludeStore   Also show Microsoft Store (AppX) packages.",
+                "",
+                "Keys:",
+                "  Up / Down        Move cursor",
+                "  Left / Right     Page through list",
+                "  Space            Toggle selection",
+                "  Ctrl+U           Uninstall selected (requires typing YES to confirm)",
+                "  F / C            Open / clear name+publisher filter",
+                "  S                Cycle sort: Name / Size / Date / Publisher / Usage",
+                "  Ctrl+R           Rescan installed apps",
+                "",
+                "Requires Administrator elevation (auto-prompted on launch)."
+            ]
+        },
+        {
+            "name": "port",
+            "version": "1.0.0",
+            "aliases": [ "pm" ],
+            "displayName": "PortManager",
+            "description": "Inspect, kill, list, watch, and find free ports",
+            "script": "lib/port-manager.ps1",
+            "usage": "pt port --get <port> | --kill <port> | --list | --watch <port> | --free",
+            "help": [
+                "TCP port inspector and process manager.",
+                "",
+                "  pt port --get <port>             Show all connections on a port",
+                "  pt port --get --pid <id>         Show connections by PID",
+                "  pt port --get --name <name>      Show connections by process name",
+                "  pt port --kill <port>            Kill process using a port (confirms first)",
+                "  pt port --kill <port> --force    Skip confirmation",
+                "  pt port --fix <port>             Detect and prompt to kill (same as --kill)",
+                "  pt port --list                   List all active TCP connections",
+                "  pt port --list --range <n>       Limit to first N results",
+                "  pt port --list --s <n> --e <n>   Filter by port number range",
+                "  pt port --watch <port>           Watch port state in real-time (Ctrl+C exits)",
+                "  pt port --free                   Find first free port (default range 1024-65535)",
+                "  pt port --free --s <n> --e <n>   Find free port in custom range",
+                "  pt port --json                   Output as JSON (combine with any command)",
+                "",
+                "Color coding: Green=LISTEN, Red=ESTABLISHED, Yellow=TIME_WAIT/CLOSE_WAIT"
+            ]
+        }
+    ]
+}

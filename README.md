@@ -1,47 +1,65 @@
 # PowerToys CLI
 
-A collection of personal PowerShell utility scripts for Windows automation. Installable as global CLI commands via the included setup system.
+A collection of personal PowerShell utility scripts for Windows automation, unified under a single `pt` command.
 
 > **Not affiliated with or related to Microsoft PowerToys.**
 
 ---
 
-## Scripts
+## Commands
 
-| Command | Description |
-|---|---|
-| `FileOrganizer` | Sorts files into category folders by extension |
-| `FileOrganizerAI` | Rule-based organizer with optional Ollama AI fallback *(experimental)* |
-| `DiskCleaner` | Analyzes disk usage by file type, finds duplicates and large files, delete or organize |
-| `AppUninstaller` | Interactive TUI to browse, select, and uninstall installed apps with usage stats |
-| `port` | Inspect, kill, list, watch, and find free ports |
+| `pt` subcommand | Aliases | Description |
+|---|---|---|
+| `pt file-organizer` | `fo`, `organize` | Sort files into category folders by extension |
+| `pt file-organizer-ai` | `foai` | Rule-based organizer with optional Ollama AI fallback *(experimental)* |
+| `pt disk-cleaner` | `dc`, `clean` | Analyze disk usage, find duplicates and large files, delete or organize |
+| `pt app-uninstaller` | `au`, `apps` | Interactive TUI to browse, select, and uninstall installed apps |
+| `pt port` | `pm` | Inspect, kill, list, watch, and find free ports |
 
 ---
 
 ## Requirements
 
 - Windows PowerShell 5.1 or later
-- [Ollama](https://ollama.com/download) — only required if using `FileOrganizerAI -UseAI`
+- [Ollama](https://ollama.com/download) — only required if using `pt file-organizer-ai -UseAI`
 
 ---
 
 ## Installation
 
-### Step 1 — Bootstrap the setup command (run once from the repo)
+Run once from the repo root:
 
 ```
 pt-installer.bat
 ```
 
-Prompts for an install path (defaults to `C:\Tools\PowerToys`), copies the setup tool there, and adds it to your user `PATH`. Open a new terminal after this completes.
-
-### Step 2 — Install scripts
+Prompts for an install path (default `C:\Tools\PowerToys`), copies `pt.ps1`, `pt.bat`, and `commands.json` there, bakes the repo location into the config, and adds the install path to your user `PATH`. Open a new terminal after this completes.
 
 ```
-pt-setup
+pt help
 ```
 
-Shows a menu of available scripts. Select by number or press `A` for all. Each script is copied to the install path and gets a `.bat` wrapper so it works from any terminal without needing to invoke `powershell` manually.
+### Adding new commands (plugin system)
+
+Drop a `.json` file into `<InstallPath>\plugins\` with the same shape as an entry in `commands.json`:
+
+```json
+{
+    "name": "my-tool",
+    "aliases": ["mt"],
+    "displayName": "MyTool",
+    "description": "Does something useful",
+    "script": "MyTools/MyTool.ps1",
+    "usage": "pt my-tool [-Flag]",
+    "help": ["One line of help text.", "Another line."]
+}
+```
+
+`pt` discovers and loads all plugin files at startup — no installer changes needed.
+
+### Legacy per-script installation
+
+Individual scripts can still be installed with `pt-setup` for direct invocation (`FileOrganizer`, `DiskCleaner`, etc.) outside of `pt`. Run `pt-installer.bat` first, then `pt-setup` in a new terminal.
 
 ---
 
@@ -50,9 +68,9 @@ Shows a menu of available scripts. Select by number or press `A` for all. Each s
 Scans the root level of a directory and moves files into category subfolders based on their extension.
 
 ```powershell
-FileOrganizer
-FileOrganizer -Path "C:\Users\Me\Downloads"
-FileOrganizer -WhatIf
+pt file-organizer
+pt fo -Path "C:\Users\Me\Downloads"
+pt fo -WhatIf
 ```
 
 ### Parameters
@@ -118,10 +136,10 @@ An advanced organizer that classifies files using a layered strategy:
 Also detects duplicate files via SHA256 hash and moves them to a `Duplicates\` subfolder instead of overwriting or deleting.
 
 ```powershell
-FileOrganizerAI
-FileOrganizerAI -Source "C:\Users\Me\Downloads" -DryRun
-FileOrganizerAI -UseAI -Model "gemma:2b"
-FileOrganizerAI -Source "D:\Docs" -Destination "D:\Sorted" -UseAI -DryRun
+pt file-organizer-ai
+pt foai -Source "C:\Users\Me\Downloads" -DryRun
+pt foai -UseAI -Model "gemma:2b"
+pt foai -Source "D:\Docs" -Destination "D:\Sorted" -UseAI -DryRun
 ```
 
 ### Parameters
@@ -178,8 +196,8 @@ If the model specified by `-Model` is not installed, the script lists available 
 Recursively scans a directory and gives you an interactive menu to analyze, clean, and organize files.
 
 ```powershell
-DiskCleaner
-DiskCleaner -Path "C:\Users\Me\Downloads"
+pt disk-cleaner
+pt dc -Path "C:\Users\Me\Downloads"
 ```
 
 ### Parameters
@@ -240,8 +258,8 @@ Option 4 looks for FileOrganizer in your `PATH`, then at `C:\Tools\PowerToys`, t
 An interactive terminal UI for browsing and uninstalling installed applications. Fully keyboard-driven — no typing required to navigate.
 
 ```powershell
-AppUninstaller
-AppUninstaller -IncludeStore
+pt app-uninstaller
+pt au -IncludeStore
 ```
 
 > Automatically requests admin elevation on launch (required to remove HKLM registry entries and files in Program Files).
@@ -300,11 +318,11 @@ Selected apps are highlighted in yellow. The count is shown in the header and th
 Inspect, kill, list, watch, and find free TCP ports.
 
 ```powershell
-port --get 3000
-port --kill 3000
-port --list
-port --watch 3000
-port --free
+pt port --get 3000
+pt port --kill 3000
+pt port --list
+pt port --watch 3000
+pt port --free
 ```
 
 ### Commands
