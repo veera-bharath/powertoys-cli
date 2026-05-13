@@ -4,47 +4,48 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-A collection of personal PowerShell utility scripts for Windows automation, unified under a single `pt` CLI command. Not related to Microsoft PowerToys.
+Personal PowerShell utility scripts for Windows automation, unified under a single `pt` CLI command. Not related to Microsoft PowerToys.
 
 ## Folder Structure
 
 ```
 scripts/
   lib/
-    file-organizer.ps1      # Organizes files into category folders by extension
-    file-organizer-ai.ps1   # Rule-based organizer with optional Ollama AI fallback (experimental)
-    disk-cleaner.ps1        # Analyzes disk usage, finds duplicates and large files
-    app-uninstaller.ps1     # Lists installed apps with details, uninstalls interactively
-    port-manager.ps1        # Inspect, kill, list, watch, and find free ports
-  pt.ps1                    # Unified CLI entry point (command router)
-  pt.bat                    # Thin CMD launcher for pt.ps1
-  commands.json             # Command registry: name, version, aliases, script path, help
+    file-organizer.ps1      Organizes files into category folders by extension
+    file-organizer-ai.ps1   Rule-based organizer with optional Ollama AI fallback (experimental)
+    disk-cleaner.ps1        Analyzes disk usage, finds duplicates and large files
+    app-uninstaller.ps1     Lists installed apps with details, uninstalls interactively
+    port-manager.ps1        Inspect, kill, list, watch, and find free ports
+  pt.ps1                    Command router -- reads commands.json, delegates to lib scripts
+  pt.bat                    Thin CMD launcher for pt.ps1
+  commands.json             Command registry: name, version, aliases, script path, help text
 
-install.bat                 # Prompts for install path, calls install.ps1
-install.ps1                 # Copies scripts/ to install path, adds to user PATH
-uninstall.bat               # Prompts for install path, calls uninstall.ps1
-uninstall.ps1               # Removes install path from PATH and deletes the directory
+install.bat                 Prompts for install path, calls install.ps1
+install.ps1                 Copies scripts/ to install path, manages user PATH
+uninstall.bat               Prompts for install path, calls uninstall.ps1
+uninstall.ps1               Removes install dir from PATH and deletes it
 ```
 
-## Installed Structure (e.g. C:\Tools\PowerToys)
+## Installed Layout (e.g. C:\Tools\PowerToys, on user PATH)
 
 ```
-C:\Tools\PowerToys\         <- on user PATH, pt.bat accessible directly
-  lib\
-    file-organizer.ps1
-    file-organizer-ai.ps1
-    disk-cleaner.ps1
-    app-uninstaller.ps1
-    port-manager.ps1
-  pt.ps1
-  pt.bat
-  commands.json
+lib\
+  file-organizer.ps1
+  file-organizer-ai.ps1
+  disk-cleaner.ps1
+  app-uninstaller.ps1
+  port-manager.ps1
+pt.ps1
+pt.bat
+commands.json
 ```
+
+`pt.ps1` uses `$PSScriptRoot` to locate `commands.json` and resolve lib script paths, so this layout works identically in both installed and dev (repo) modes.
 
 ## Running Scripts
 
 ```powershell
-# Via the pt CLI (installed or directly from scripts/)
+# Via pt (works from repo scripts/ or from install path)
 pt file-organizer
 pt fo -Path "C:\Some\Dir" -WhatIf
 
@@ -59,81 +60,78 @@ pt au -IncludeStore
 
 pt port --list
 pt port --get 3000
-pt port --kill 3000
+pt port --kill 3000 --force
 pt port --watch 3000
-pt port --free
+pt port --free --s 3000 --e 9000
 
-# Directly from the repo (dev mode)
+# From the repo without installing
 powershell -ExecutionPolicy Bypass -File scripts\pt.ps1 help
 powershell -ExecutionPolicy Bypass -File scripts\pt.ps1 disk-cleaner -Path "C:\Some\Dir"
-
-# Install / uninstall
-install.bat
-uninstall.bat
 ```
+
+## Key Conventions
+
+- No non-ASCII characters in `.ps1` or `.bat` files (PS5.1 + CMD corrupt them)
+- All lib scripts default `$Path`/`$Source` to `(Get-Location).Path` -- callable from any directory
+- Organizer scripts scan root-level files only (`Get-ChildItem -File`, no `-Recurse`)
+- To add a new command: add entry to `scripts/commands.json` + drop `.ps1` in `scripts/lib/` -- no other files change
+- To bump a script version: increment `version` in its `commands.json` entry; `install.ps1` will overwrite it on next run
 
 ## Architecture
 
 ### pt.ps1
 - No `param()` block -- uses `$args` directly so all arguments pass through unmodified to child scripts
-- `$PSScriptRoot` is always the base for resolving `commands.json` and lib scripts; works identically in dev and installed modes
-- `--debug` is consumed by `pt.ps1` and never forwarded; shows routing info (command, script path, args)
-- `Get-Suggestions` does substring match on name and aliases for typo recovery
-- Plugin support: drops a `.json` next to `commands.json` -- `pt.ps1` loads all `*.json` files in a `plugins\` subdirectory
+- `$PSScriptRoot` is the base for all path resolution; no hardcoded paths anywhere
+- `--debug` is consumed here and never forwarded; prints command name, resolved script path, and forwarded args
+- Subcommand lookup: exact `name` match first, then `aliases`; typo recovery via substring match
 
 ### commands.json
-- Top-level `version` field tracks the overall release version
-- Per-command `version` field is used by `install.ps1` to decide skip / update / add on re-run
-- `script` paths are relative to `$PSScriptRoot` of `pt.ps1` (e.g. `lib/file-organizer.ps1`)
-- To add a new command: add an entry here and drop the `.ps1` in `scripts/lib/` -- no changes to `pt.ps1` or `install.ps1`
+- Top-level `version` mirrors the overall release; per-command `version` is what `install.ps1` compares
+- `script` paths are relative to `pt.ps1` location (e.g. `lib/file-organizer.ps1`)
+- `help` is an array of strings rendered line-by-line by `pt help <command>`
 
 ### install.ps1
-- Always overwrites `pt.ps1`, `pt.bat` (launcher files should always be current)
-- Per lib script: compares `version` field in source vs installed `commands.json`; skips if equal, updates if changed, adds if absent
-- Writes `commands.json` last so it only reflects scripts that were successfully copied
+- Always overwrites `pt.ps1` and `pt.bat` (launcher should always be current)
+- Per lib script: reads source vs installed `commands.json`, compares `version` field
+  - Same version: skip (prints `ok`)
+  - Different version: overwrite (prints `UPDATE vX -> vY`)
+  - Not present: copy (prints `ADD`)
+- Writes `commands.json` last -- only reflects scripts that were successfully copied
 - Idempotent: safe to re-run at any time
 
 ### file-organizer.ps1
-- Hardcoded `$ExtensionMap` maps extensions to category folders (e.g. `.pdf` -> `Documents\PDF`)
-- Skips the script itself and `.bat` launchers in its own folder
-- Handles filename collisions by appending `_2`, `_3`, ... instead of overwriting
-- `-WhatIf` for dry-run preview; structured summary with by-category breakdown at the end
+- `$ExtensionMap` maps extensions to category folders (e.g. `.pdf` -> `Documents\PDF`)
+- Skips the script itself and `.bat` files in its own folder
+- Filename collisions resolved by appending `_2`, `_3`, ... -- never overwrites
+- `-WhatIf` previews without moving; summary shows by-category breakdown
 
 ### file-organizer-ai.ps1
-- Classification priority: Finance/Document **keywords** -> **extension map** -> **Ollama AI** (fallback only) -> Others
-- `-UseAI` enables AI fallback; validates Ollama is installed and prompts model selection at startup
-- AI called per-file only when both keyword and extension rules fail; single call with 30s timeout
-- Duplicate detection via SHA256 hash (streamed -- memory-safe); duplicates moved to `Duplicates\`
+- Classification priority: Finance/Document keywords -> extension map -> Ollama AI -> Others
+- `-UseAI` enables Ollama fallback; validates install and prompts model selection at startup
+- AI called per-file only when keyword and extension rules both fail; 30s timeout per call
+- Duplicate detection via SHA256 (streamed, memory-safe); duplicates go to `Duplicates\`
 - Outputs `organizer.log` and `organizer-metadata.json` to the destination folder
 
 ### disk-cleaner.ps1
-- Scans recursively with `Get-ChildItem -Recurse`; all results held in memory for fast menu navigation
-- Extension-to-category map (`$CAT_MAP`) drives file type grouping
-- Duplicate detection: groups by file size first (fast pre-filter), then SHA256 hash via `Get-FileHash`
-- Deletions go to Recycle Bin via `Microsoft.VisualBasic.FileIO.FileSystem` -- never permanent by default
-- Menu flow: Main -> File Types -> file list (paginated, 18/page) | Duplicates | Large Files | Organize
+- Scans recursively; all results held in memory for fast paginated menu navigation
+- `$CAT_MAP` drives extension-to-category grouping
+- Duplicate detection: size pre-filter then SHA256 via `Get-FileHash`
+- Deletions via `Microsoft.VisualBasic.FileIO.FileSystem` (Recycle Bin, never permanent)
+- Menu flow: Main -> File Types | Duplicates | Large Files | Organize
 
 ### app-uninstaller.ps1
-- Fully keyboard-driven TUI: Up/Down moves cursor, Left/Right pages, Space multi-selects, Ctrl+U uninstalls, Ctrl+R rescans
-- Renders in-place via `[Console]::SetCursorPosition(0,0)` + fixed-height rows (no flicker); cursor hidden during draw
-- Scans three registry hives for Win32/MSI apps; deduplicates by `Name|Version` key
+- Keyboard-driven TUI rendered in-place via `[Console]::SetCursorPosition` (no flicker)
+- Scans three registry hives for Win32/MSI apps; deduplicates by `Name|Version`
 - Last-used detection via prefetch map (`C:\Windows\Prefetch\*.pf`)
-- Sort modes: Name / Size / Date / Publisher / Usage; text filter by name or publisher
-- Uninstall strategy: MSI -> `msiexec /X {GUID} /passive`; EXE -> launch uninstall string; Store -> `Remove-AppxPackage`
-- Requires Administrator elevation (auto-prompted on launch)
+- Sort: Name / Size / Date / Publisher / Usage; filter by name or publisher
+- Uninstall: MSI -> `msiexec /X {GUID} /passive`; EXE -> uninstall string; Store -> `Remove-AppxPackage`
+- Orphaned entries (exe missing on disk): registry key removed automatically
+- Auto-elevates to admin on startup
 
 ### port-manager.ps1
-- Uses `Get-NetTCPConnection` for TCP state data; enriches with process names via `Get-Process` (PID-cached)
-- Background job (`Start-Job`) powers the spinner -- job fetches connections while main thread animates
-- `--kill` / `--fix`: requires typing `YES` to confirm; `--force` skips prompt
-- `--free`: builds a `HashSet[int]` of used ports, scans the range linearly for the first gap
-- `--json`: outputs `ConvertTo-Json` instead of formatted tables
-- Color coding: Green=LISTEN/free, Red=ESTABLISHED, Yellow=TIME_WAIT/CLOSE_WAIT, Gray=other
-
-## Key Conventions
-
-- All scripts default `$Path`/`$Source` to `(Get-Location).Path` -- run from any directory without arguments
-- Organizer scripts scan **root-level files only** (`Get-ChildItem -File`, no `-Recurse`)
-- `.bat` launchers use `ExecutionPolicy Bypass` to avoid needing system-wide policy changes
-- No non-ASCII characters in `.ps1` or `.bat` files (PS5.1 + CMD corrupt them)
-- To add a new command: add entry to `scripts/commands.json` + drop `.ps1` in `scripts/lib/`
+- `Get-NetTCPConnection` for TCP state; process names enriched via PID-cached `Get-Process`
+- Background job (`Start-Job`) fetches connections while main thread shows spinner
+- `--kill`/`--fix`: shows detail card, requires `YES` to confirm; `--force` skips prompt
+- `--free`: `HashSet[int]` of used ports, linear scan for first gap in range
+- `--json`: `ConvertTo-Json` output for any command
+- Color: Green=LISTEN/free, Red=ESTABLISHED, Yellow=TIME_WAIT/CLOSE_WAIT, Gray=other

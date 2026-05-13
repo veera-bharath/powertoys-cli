@@ -8,11 +8,11 @@ A collection of personal PowerShell utility scripts for Windows automation, unif
 
 ## Commands
 
-| `pt` subcommand | Aliases | Description |
+| Subcommand | Aliases | Description |
 |---|---|---|
 | `pt file-organizer` | `fo`, `organize` | Sort files into category folders by extension |
 | `pt file-organizer-ai` | `foai` | Rule-based organizer with optional Ollama AI fallback *(experimental)* |
-| `pt disk-cleaner` | `dc`, `clean` | Analyze disk usage, find duplicates and large files, delete or organize |
+| `pt disk-cleaner` | `dc`, `clean` | Analyze disk usage, find duplicates and large files |
 | `pt app-uninstaller` | `au`, `apps` | Interactive TUI to browse, select, and uninstall installed apps |
 | `pt port` | `pm` | Inspect, kill, list, watch, and find free ports |
 
@@ -27,43 +27,65 @@ A collection of personal PowerShell utility scripts for Windows automation, unif
 
 ## Installation
 
-Run once from the repo root:
-
 ```
-pt-installer.bat
+install.bat
 ```
 
-Prompts for an install path (default `C:\Tools\PowerToys`), copies `pt.ps1`, `pt.bat`, and `commands.json` there, bakes the repo location into the config, and adds the install path to your user `PATH`. Open a new terminal after this completes.
+Prompts for an install path (default `C:\Tools\PowerToys`), copies all scripts and the `pt` launcher there, and adds the path to your user `PATH`. Open a new terminal after this completes.
+
+Re-running `install.bat` is safe — scripts are skipped if already at the current version, updated if the version changed, and added if new.
+
+To remove:
 
 ```
-pt help
+uninstall.bat
 ```
-
-### Adding new commands (plugin system)
-
-Drop a `.json` file into `<InstallPath>\plugins\` with the same shape as an entry in `commands.json`:
-
-```json
-{
-    "name": "my-tool",
-    "aliases": ["mt"],
-    "displayName": "MyTool",
-    "description": "Does something useful",
-    "script": "MyTools/MyTool.ps1",
-    "usage": "pt my-tool [-Flag]",
-    "help": ["One line of help text.", "Another line."]
-}
-```
-
-`pt` discovers and loads all plugin files at startup — no installer changes needed.
-
-### Legacy per-script installation
-
-Individual scripts can still be installed with `pt-setup` for direct invocation (`FileOrganizer`, `DiskCleaner`, etc.) outside of `pt`. Run `pt-installer.bat` first, then `pt-setup` in a new terminal.
 
 ---
 
-## FileOrganizer
+## Project Structure
+
+```
+scripts/
+  lib/
+    file-organizer.ps1
+    file-organizer-ai.ps1
+    disk-cleaner.ps1
+    app-uninstaller.ps1
+    port-manager.ps1
+  pt.ps1            command router
+  pt.bat            CMD launcher
+  commands.json     command registry (names, aliases, versions, help)
+
+install.bat         prompts for path, calls install.ps1
+install.ps1         copies scripts/ to install path, manages PATH
+uninstall.bat       prompts for path, calls uninstall.ps1
+uninstall.ps1       removes install path from PATH and deletes the directory
+```
+
+**Installed layout** (`C:\Tools\PowerToys` on PATH):
+
+```
+lib\
+  file-organizer.ps1
+  file-organizer-ai.ps1
+  disk-cleaner.ps1
+  app-uninstaller.ps1
+  port-manager.ps1
+pt.ps1
+pt.bat
+commands.json
+```
+
+### Adding a new command
+
+1. Drop a `.ps1` into `scripts/lib/`
+2. Add an entry to `scripts/commands.json`
+3. Re-run `install.bat`
+
+---
+
+## file-organizer
 
 Scans the root level of a directory and moves files into category subfolders based on their extension.
 
@@ -96,7 +118,7 @@ pt fo -WhatIf
 | `Documents\Text` | `.txt` `.md` `.log` |
 | `Documents\Email` | `.eml` |
 
-Files with no matching extension are listed as **Skipped** in the summary. Filename collisions are resolved by appending `_2`, `_3`, etc. — nothing is overwritten.
+Files with no matching extension are listed as **Skipped**. Filename collisions are resolved by appending `_2`, `_3`, etc. — nothing is overwritten.
 
 ### Output
 
@@ -113,7 +135,6 @@ Files with no matching extension are listed as **Skipped** in the summary. Filen
   ----------------------------------------------------
   Total found    3
   Moved          2
-  Failed         0
   Skipped        1
 
   BY CATEGORY
@@ -124,16 +145,16 @@ Files with no matching extension are listed as **Skipped** in the summary. Filen
 
 ---
 
-## FileOrganizerAI *(experimental)*
+## file-organizer-ai *(experimental)*
 
-An advanced organizer that classifies files using a layered strategy:
+Classifies files using a layered strategy:
 
 1. **Keyword rules** — filename keywords mapped to Finance or Documents categories
-2. **Extension map** — same broad extension-to-category mapping as FileOrganizer
-3. **Ollama AI fallback** — called only when both rules above fail (requires `-UseAI`)
+2. **Extension map** — same mapping as file-organizer
+3. **Ollama AI fallback** — only when both rules above fail (requires `-UseAI`)
 4. **Others** — catch-all for anything unclassified
 
-Also detects duplicate files via SHA256 hash and moves them to a `Duplicates\` subfolder instead of overwriting or deleting.
+Also detects duplicate files via SHA256 hash and moves them to a `Duplicates\` subfolder.
 
 ```powershell
 pt file-organizer-ai
@@ -159,41 +180,26 @@ pt foai -Source "D:\Docs" -Destination "D:\Sorted" -UseAI -DryRun
 | `Finance` | invoice, bill, receipt, payment, tax, salary, payslip, statement, budget, expense, finance, bank, ledger, transaction, refund, purchase, order, quote, payroll |
 | `Documents` | report, resume, cv, letter, contract, agreement, proposal, memo, manual, guide, notes, summary, minutes, agenda, policy |
 
-Keyword matching takes priority over the extension map.
-
-### Extension Mappings
-
-| Category | Extensions |
-|---|---|
-| `Documents` | `.pdf` `.doc` `.docx` `.rtf` `.xls` `.xlsx` `.csv` `.ppt` `.pptx` `.txt` `.md` `.log` `.odt` `.ods` `.odp` |
-| `Images` | `.jpg` `.jpeg` `.png` `.gif` `.bmp` `.svg` `.webp` `.heic` `.tiff` `.ico` `.avif` `.raw` |
-| `Videos` | `.mp4` `.mkv` `.avi` `.mov` `.wmv` `.flv` `.webm` `.m4v` `.mpg` `.mpeg` |
-| `Code` | `.py` `.js` `.ts` `.cs` `.java` `.cpp` `.c` `.h` `.html` `.css` `.php` `.rb` `.go` `.rs` `.ps1` `.sh` `.json` `.xml` `.yaml` `.yml` `.sql` |
-| `Archives` | `.zip` `.rar` `.7z` `.tar` `.gz` `.bz2` `.xz` `.iso` |
-
 ### Outputs
 
-Two files are written to the `Destination` folder after each run:
+- **`organizer.log`** — timestamped log of every action
+- **`organizer-metadata.json`** — per-file record with category, size, dates, AI flag, original and new paths
 
-- **`organizer.log`** — timestamped log of every action (moved, duplicated, error)
-- **`organizer-metadata.json`** — per-file record including category, tags, size, dates, AI usage flag, original and new paths
-
-### Using AI fallback
+### AI fallback
 
 Requires [Ollama](https://ollama.com/download) installed and running. Pull a model first:
 
 ```
 ollama pull gemma:2b
-ollama pull llama3.2:1b
 ```
 
-If the model specified by `-Model` is not installed, the script lists available models and lets you choose interactively.
+If the specified model is not installed, the script lists available models and lets you choose interactively.
 
 ---
 
-## DiskCleaner
+## disk-cleaner
 
-Recursively scans a directory and gives you an interactive menu to analyze, clean, and organize files.
+Recursively scans a directory and provides an interactive menu to analyze, clean, and organize files.
 
 ```powershell
 pt disk-cleaner
@@ -216,53 +222,41 @@ pt dc -Path "C:\Users\Me\Downloads"
   1.  File Types      - breakdown by category with size bar
   2.  Duplicate Files - groups of identical files, wasted space
   3.  Large Files     - top 20 files by size
-  4.  Organize        - run FileOrganizer on this path
+  4.  Organize        - run file-organizer on this path
   R.  Re-scan
   Q.  Quit
 ```
 
-### File Types view
-
-Lists all extension categories (Videos, Images, Documents, Archives, Code, Executables, Others) with file count, total size, and a visual bar. Select a category to browse its files with pagination (18 per page).
-
 ### Duplicate Files view
 
-Groups files by SHA256 hash. For each group, shows file count and wasted space (total size minus one copy). Options:
+Groups files by SHA256 hash. For each group, shows file count and wasted space.
 
 - **`D <group>`** — keep the newest copy, send the rest to Recycle Bin
-- **`<group>`** — inspect individual files in the group and delete selectively
+- **`<group>`** — inspect files in the group and delete selectively
 
-### Large Files view
-
-Top 20 files sorted by size. Same file list interface as File Types.
-
-### File list options (available in all views)
+### File list options
 
 | Input | Action |
 |---|---|
 | `<number>` | Send that file to Recycle Bin (with confirmation) |
 | `O <number>` | Open file location in Explorer |
 | `N` / `P` | Next / previous page |
-| `B` | Back to previous menu |
+| `B` | Back |
 
-> All deletions go to the **Recycle Bin** — nothing is permanently deleted without going through the Bin first.
-
-### Organize integration
-
-Option 4 looks for FileOrganizer in your `PATH`, then at `C:\Tools\PowerToys`, then as a sibling script in the repo. If not found, it prints install instructions. If found, offers a **WhatIf preview** before running for real.
+> All deletions go to the **Recycle Bin** — nothing is permanently deleted.
 
 ---
 
-## AppUninstaller
+## app-uninstaller
 
-An interactive terminal UI for browsing and uninstalling installed applications. Fully keyboard-driven — no typing required to navigate.
+Interactive terminal UI for browsing and uninstalling installed applications. Fully keyboard-driven.
 
 ```powershell
 pt app-uninstaller
 pt au -IncludeStore
 ```
 
-> Automatically requests admin elevation on launch (required to remove HKLM registry entries and files in Program Files).
+> Automatically requests admin elevation on launch.
 
 ### Parameters
 
@@ -276,11 +270,10 @@ pt au -IncludeStore
 |---|---|
 | `Up` / `Down` | Move cursor |
 | `Left` / `Right` | Previous / next page |
-| `Space` | Toggle selection on highlighted app (cursor advances) |
-| `Ctrl+U` | Open uninstall confirmation for all selected apps |
-| `Ctrl+R` | Rescan installed apps |
-| `F` | Open filter prompt (type name or publisher, Enter to apply) |
-| `C` | Clear active filter |
+| `Space` | Toggle selection |
+| `Ctrl+U` | Uninstall selected apps |
+| `Ctrl+R` | Rescan |
+| `F` / `C` | Open / clear filter |
 | `S` | Cycle sort: Name → Size → Date → Publisher → Usage |
 | `Q` | Quit |
 
@@ -291,29 +284,25 @@ pt au -IncludeStore
 | Name | `DisplayName` registry value |
 | Publisher | `Publisher` registry value |
 | Version | `DisplayVersion` registry value |
-| Installed | `InstallDate` registry value (parsed from `yyyyMMdd`) |
-| Size | `EstimatedSize` registry value (converted from KB) |
-| Type | `[MSI]` Windows Installer / `[EXE]` standalone / `[Str]` Store |
-| Last Used | Most recent `LastWriteTime` among matching prefetch files in `C:\Windows\Prefetch\` |
+| Installed | `InstallDate` (parsed from `yyyyMMdd`) |
+| Size | `EstimatedSize` (converted from KB) |
+| Type | `[MSI]` / `[EXE]` / `[Str]` Store |
+| Last Used | Most recent prefetch timestamp in `C:\Windows\Prefetch\` |
 
 ### Uninstall behaviour
 
-| App type | Method |
+| Type | Method |
 |---|---|
-| MSI | `msiexec /X {GUID} /passive` — silent with progress bar, no clicks |
-| EXE | Launches the app's own uninstaller window |
-| Store | `Remove-AppxPackage` — silent background removal |
-| Orphaned entry | Exe no longer on disk → registry entry is cleaned up automatically |
+| MSI | `msiexec /X {GUID} /passive` |
+| EXE | Launches the app's own uninstaller |
+| Store | `Remove-AppxPackage` |
+| Orphaned | Exe missing on disk — registry entry cleaned up automatically |
 
-The confirmation screen lists every selected app with its type and size before anything is removed. You must type `YES` (uppercase) to proceed.
-
-### Selection
-
-Selected apps are highlighted in yellow. The count is shown in the header and the hint bar. Multi-select as many apps as you like before pressing `Ctrl+U` to uninstall them in sequence.
+Requires typing `YES` (uppercase) on the confirmation screen before anything is removed.
 
 ---
 
-## PortManager
+## port
 
 Inspect, kill, list, watch, and find free TCP ports.
 
@@ -336,14 +325,14 @@ pt port --free
 | `--kill --pid <id>` | Kill by PID |
 | `--kill --name <name>` | Kill by process name |
 | `--kill <port> --force` | Kill without confirmation prompt |
-| `--fix <port>` | Alias for `--kill` — detect conflict, prompt, kill |
+| `--fix <port>` | Alias for `--kill` |
 | `--list` | Table of all active TCP connections |
 | `--list --range <n>` | Limit to first N results |
 | `--list --s <start> --e <end>` | Filter by port number range |
-| `--watch <port>` | Poll port every second, print state changes — `Ctrl+C` exits |
+| `--watch <port>` | Poll every second, print state changes — `Ctrl+C` exits |
 | `--free` | Find the first free port in 1024–65535 |
 | `--free --s <start> --e <end>` | Find a free port in a specific range |
-| `--json` | Output as JSON instead of formatted tables (combine with any command) |
+| `--json` | Output as JSON (combine with any command) |
 
 ### List output
 
@@ -360,79 +349,6 @@ pt port --free
 | Color | Meaning |
 |---|---|
 | Green | `Listen` / free port |
-| Red | `Established` (active connection) |
-| Yellow | `TimeWait` / `CloseWait` (closing) |
-| Gray | Other states (`Bound`, etc.) |
-
-### Kill confirmation
-
-`--kill` always shows a detail card before acting and requires typing `YES` in full. Use `--force` to skip the prompt in scripts.
-
-If a kill fails with access denied, the error message suggests re-running as Administrator.
-
----
-
-## Setup System
-
-The setup is split into two stages so the tool works from anywhere after initial install.
-
-### `pt-installer.bat` (run from the repo, once)
-
-- Asks for an install path (default `C:\Tools\PowerToys`)
-- Bakes the repo root and install path into `Setup\scripts.json`
-- Copies `pt-setup.ps1`, `pt-setup.bat`, and `scripts.json` to the install path
-- Adds the install path to your user `PATH`
-
-### `pt-setup` (run from any terminal, any time)
-
-- Reads config from `scripts.json` (no arguments needed)
-- Lists already-installed scripts and excludes them from the menu
-- Copies the selected `.ps1` files from the repo and generates thin `.bat` wrappers
-- All script parameters pass through the `.bat` wrappers transparently
-
-### Adding a new script
-
-Add one entry to `Setup/scripts.json` — no changes to any `.ps1` file needed:
-
-```json
-{
-  "id":          "MyScript",
-  "displayName": "MyScript",
-  "description": "One-line description shown in the menu",
-  "source":      "MyScript/MyScript.ps1",
-  "usage":       "MyScript [-Param value]"
-}
-```
-
----
-
-## Project Structure
-
-```
-FileOrganizer/
-  FileOrganizer.ps1       Extension-based file organizer
-  FileOrganizer.bat       Interactive launcher
-
-FileOrganizerAI/
-  FileOrganizerAI.ps1     Rule-based + AI fallback organizer
-  FileOrganizerAI.bat     Interactive launcher
-
-DiskCleaner/
-  DiskCleaner.ps1         Disk usage analyzer and cleaner
-  DiskCleaner.bat         Interactive launcher
-
-AppUninstaller/
-  AppUninstaller.ps1      Interactive app uninstaller with keyboard navigation
-  AppUninstaller.bat      Launcher (prompts for Store app inclusion)
-
-PortManager/
-  PortManager.ps1         Port inspector, killer, watcher, and free-port finder
-  port.bat                Thin launcher (command is "port")
-
-Setup/
-  pt-setup.ps1            Installs selected scripts to PATH location
-  pt-setup.bat            Launcher (copied to install path)
-  scripts.json            Registry of installable scripts
-
-pt-installer.bat          One-time bootstrapper (run from repo root)
-```
+| Red | `Established` |
+| Yellow | `TimeWait` / `CloseWait` |
+| Gray | Other states |
