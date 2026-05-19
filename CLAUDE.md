@@ -16,6 +16,7 @@ scripts/
     disk-cleaner.ps1        Analyzes disk usage, finds duplicates and large files
     app-uninstaller.ps1     Lists installed apps with details, uninstalls interactively
     port-manager.ps1        Inspect, kill, list, watch, and find free ports
+    env-manager.ps1         Manage environment variables, PATH, .env files, and profiles
   pt.ps1                    Command router -- reads commands.json, delegates to lib scripts
   pt.bat                    Thin CMD launcher for pt.ps1
   commands.json             Command registry: name, version, aliases, script path, help text
@@ -35,6 +36,7 @@ lib\
   disk-cleaner.ps1
   app-uninstaller.ps1
   port-manager.ps1
+  env-manager.ps1
 pt.ps1
 pt.bat
 commands.json
@@ -63,6 +65,23 @@ pt port --get 3000
 pt port --kill 3000 --force
 pt port --watch 3000
 pt port --free --s 3000 --e 9000
+
+pt env --list
+pt env --list --user
+pt env --get PATH
+pt env --set MY_VAR=hello
+pt env --set MY_VAR=hello --system
+pt env --delete MY_VAR
+pt env --temp MY_VAR=hello
+pt env --path --list
+pt env --path --list --system
+pt env --path --get Python
+pt env --path --add "C:\Tools\X1" "C:\Tools\X2"
+pt env --path --remove "C:\Tools\X1" "C:\Tools\X2" --system
+pt env --load .env
+pt env --export .env
+pt env --profile dev
+pt env --generate node
 
 # From the repo without installing
 powershell -ExecutionPolicy Bypass -File scripts\pt.ps1 help
@@ -135,3 +154,13 @@ powershell -ExecutionPolicy Bypass -File scripts\pt.ps1 disk-cleaner -Path "C:\S
 - `--free`: `HashSet[int]` of used ports, linear scan for first gap in range
 - `--json`: `ConvertTo-Json` output for any command
 - Color: Green=LISTEN/free, Red=ESTABLISHED, Yellow=TIME_WAIT/CLOSE_WAIT, Gray=other
+
+### env-manager.ps1
+- All env reads/writes via `[System.Environment]::GetEnvironmentVariable` / `SetEnvironmentVariable` with explicit `User` or `Machine` target
+- Positional args use `ValueFromRemainingArguments` (`[string[]]$Values`) so `--path --add` accepts any number of directories
+- `--path` is checked first in the dispatch so `--path --list` and `--path --get` don't fall into the top-level `--list`/`--get` branches
+- PATH operations read, mutate, then write in one call -- no partial writes on multi-dir input
+- Sensitive masking: any var whose name contains `KEY`, `SECRET`, `TOKEN`, `PASSWORD`, `PASS`, `PWD`, `CREDENTIAL`, or `AUTH` has its value partially masked in all output
+- Profiles stored as JSON files in `<install-dir>\env-profiles\<name>.json`; `Get-ProfileDir` resolves via `$PSScriptRoot`
+- `--path --list` deduplication: shared `HashSet[string]` (OrdinalIgnoreCase) across User then System -- cross-scope dups are tagged `[DUP]`
+- `--generate` templates are defined in the `$ENV_TEMPLATES` hashtable at script scope; add new keys there to add new templates
