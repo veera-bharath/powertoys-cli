@@ -15,6 +15,7 @@ A collection of personal PowerShell utility scripts for Windows automation, unif
 | `pt disk-cleaner` | `dc`, `clean` | Analyze disk usage, find duplicates and large files |
 | `pt app-uninstaller` | `au`, `apps` | Interactive TUI to browse, select, and uninstall installed apps |
 | `pt port` | `pm` | Inspect, kill, list, watch, and find free ports |
+| `pt env` | `envm` | Manage environment variables, PATH, .env files, and profiles |
 
 ---
 
@@ -53,6 +54,7 @@ scripts/
     disk-cleaner.ps1
     app-uninstaller.ps1
     port-manager.ps1
+    env-manager.ps1
   pt.ps1            command router
   pt.bat            CMD launcher
   commands.json     command registry (names, aliases, versions, help)
@@ -72,6 +74,7 @@ lib\
   disk-cleaner.ps1
   app-uninstaller.ps1
   port-manager.ps1
+  env-manager.ps1
 pt.ps1
 pt.bat
 commands.json
@@ -352,3 +355,72 @@ pt port --free
 | Red | `Established` |
 | Yellow | `TimeWait` / `CloseWait` |
 | Gray | Other states |
+
+---
+
+## env
+
+Manage Windows environment variables, PATH entries, `.env` files, and named environment profiles.
+
+```powershell
+pt env --list
+pt env --get NODE_ENV
+pt env --set MY_VAR=hello
+pt env --path --list
+pt env --profile dev
+```
+
+### Variable commands
+
+| Command | Description |
+|---|---|
+| `--list [--user\|--system] [--json]` | List all variables with scope. Default: both. |
+| `--get <NAME>` | Show User, System, and Session values side-by-side |
+| `--set NAME=VALUE [--system]` | Set a variable. Default scope: User. Prompts `YES` on overwrite. |
+| `--delete <NAME> [--system]` | Delete a variable. Prompts `YES` to confirm. |
+| `--temp NAME=VALUE` | Set a variable for the current session only |
+
+Sensitive values are automatically masked in output when the name contains `KEY`, `SECRET`, `TOKEN`, or `PASSWORD`.
+
+### PATH commands
+
+| Command | Description |
+|---|---|
+| `--path --list [--user\|--system]` | List PATH entries with `[OK]` / `[MISSING]` / `[DUP]` tags. Default: User. |
+| `--path --get <term> [--user\|--system]` | Search PATH entries by name |
+| `--path --add "C:\A" "C:\B" [--system]` | Add one or more directories. Skips duplicates, warns if path missing. |
+| `--path --remove "C:\A" "C:\B" [--system]` | Remove one or more directories |
+
+### .env file commands
+
+| Command | Description |
+|---|---|
+| `--load <file.env>` | Load `KEY=VALUE` pairs into User scope. Skips comments and blank lines. |
+| `--export <file.env>` | Export all User variables to a `.env` file |
+
+### Profiles
+
+Store named sets of variables as JSON files in `<install-dir>\env-profiles\`:
+
+```json
+{
+  "API_URL": "http://localhost:3000",
+  "NODE_ENV": "development",
+  "DB_URL": "postgresql://localhost/mydb"
+}
+```
+
+| Command | Description |
+|---|---|
+| `--profile` | List available profiles |
+| `--profile <name>` | Apply all variables from the named profile into User scope |
+
+### .env templates
+
+```powershell
+pt env --generate node      # Node.js starter
+pt env --generate python    # Flask/Python starter
+pt env --generate dotnet    # ASP.NET Core starter
+```
+
+Writes a `.env` file in the current directory. Load it with `pt env --load .env`.
