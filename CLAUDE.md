@@ -184,3 +184,14 @@ powershell -ExecutionPolicy Bypass -File scripts\pt.ps1 disk-cleaner -Path "C:\S
 - Results use `[System.Collections.Generic.List[object]]` for O(1) appends (avoids PS array `+=` realloc)
 - `--open <n>` calls `Start-Process` on the nth result path -- opens with whatever the OS default app is
 - Parameter name collision avoided: JSON file filter is `$JsonFiles` with `[Alias('json')]`; JSON output is `$Jsonout` -- both `-json` and `-jsonout` are unambiguous in PS5.1 splatting
+
+### run.ps1
+- Config priority: `.pt.json` in `(Get-Location).Path` first, then `pt.config.json` resolved via `$PSScriptRoot\..\` (install dir); `Load-Config` returns `$null` if neither exists
+- Step normalization in `Resolve-Step`: plain string -> `{Kind='single'}`, object with `parallel` key -> `{Kind='parallel'}`, object with `cmd` key -> `{Kind='single'}` with optional `Condition` and `Timeout`; `$raw.PSObject.Properties['if'].Value` used to safely read the `if` key (reserved word in PS statement position)
+- `Invoke-Step` pipes through `Out-Host` (`Invoke-Expression $Cmd | Out-Host`) to prevent stdout leaking into the function's pipeline return stream -- without this, `$code = Invoke-Step ...` receives an array like `@("output-line", 0)` and `$array -ne 0` is truthy even on success
+- `$global:LASTEXITCODE = 0` is reset before each `Invoke-Expression` call -- cmdlets do not update `$LASTEXITCODE`, so a stale non-zero value from a prior external process bleeds through otherwise
+- Timeout steps use `Start-Job` + `Wait-Job -Timeout`; the job script block receives `$cmd` and `$dir` as arguments and calls `Set-Location $dir` to inherit the working directory (PS jobs start in the user profile by default)
+- Parallel steps also use `Start-Job`; output is captured via `2>&1 | Out-String` inside the job and printed after all jobs complete, labeled with the originating command; the parallel group exit code is 0 only if all jobs exit 0
+- `--continue` maps to `$KeepGoing`; on step failure the workflow increments `$failCount` and continues instead of returning early; final exit code is non-zero if `$failCount -gt 0`
+- `--env <profile>` resolves `pt.ps1` via `$PSScriptRoot\..\pt.ps1` and calls `& $ptScript env --profile $Env`; failure aborts the workflow before any steps run
+- `Show-Workflows` uses `Get-Member -MemberType NoteProperty` to enumerate workflow names from the `scripts` object returned by `ConvertFrom-Json`
