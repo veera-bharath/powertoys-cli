@@ -17,6 +17,7 @@ scripts/
     app-uninstaller.ps1     Lists installed apps with details, uninstalls interactively
     port-manager.ps1        Inspect, kill, list, watch, and find free ports
     env-manager.ps1         Manage environment variables, PATH, .env files, and profiles
+    search.ps1              Fast recursive file and content search
   pt.ps1                    Command router -- reads commands.json, delegates to lib scripts
   pt.bat                    Thin CMD launcher for pt.ps1
   commands.json             Command registry: name, version, aliases, script path, help text
@@ -37,6 +38,7 @@ lib\
   app-uninstaller.ps1
   port-manager.ps1
   env-manager.ps1
+  search.ps1
 pt.ps1
 pt.bat
 commands.json
@@ -82,6 +84,11 @@ pt env --load .env
 pt env --export .env
 pt env --profile dev
 pt env --generate node
+
+pt search readme.md --path "D:\Projects"
+pt search "TODO" --content --code --path "D:\Projects\MyApp"
+pt search error --logs --limit 20
+pt search *.json --path "D:\Projects" --excl node_modules,dist
 
 # From the repo without installing
 powershell -ExecutionPolicy Bypass -File scripts\pt.ps1 help
@@ -164,3 +171,16 @@ powershell -ExecutionPolicy Bypass -File scripts\pt.ps1 disk-cleaner -Path "C:\S
 - Profiles stored as JSON files in `<install-dir>\env-profiles\<name>.json`; `Get-ProfileDir` resolves via `$PSScriptRoot`
 - `--path --list` deduplication: shared `HashSet[string]` (OrdinalIgnoreCase) across User then System -- cross-scope dups are tagged `[DUP]`
 - `--generate` templates are defined in the `$ENV_TEMPLATES` hashtable at script scope; add new keys there to add new templates
+
+### search.ps1
+- Two modes: filename (default) and content (`--content`); dispatched in main body based on `$Content` switch
+- BFS traversal via `[System.Collections.Generic.Queue[string]]`; stops as soon as `$Limit` results are collected -- never scans more than needed
+- File enumeration via `[System.IO.Directory]::EnumerateFiles` (lazy .NET enumerator, faster than `Get-ChildItem`)
+- `$SKIP_DIRS` is a `HashSet[string]` (OrdinalIgnoreCase) checked against each subdirectory name before enqueueing; built-in list covers `node_modules`, `.git`, `bin`, `obj`, `dist`, and ~10 others
+- `--excl` splits on comma, trims, and adds entries into `$SKIP_DIRS` at runtime before the search starts
+- Smart filters (`--logs`, `--json`, `--code`) resolve to extension glob arrays passed as `$Include` to search functions; `@('*')` means no filter
+- Filename mode: when `$Include = @('*')`, uses `"*$Pattern*"` as the EnumerateFiles glob so the OS filters by name; when a type filter is active, enumerates by extension glob then checks name with `-like "*$Pattern*"`
+- Content mode: `Select-String` per file; results sorted by match count desc then modified desc
+- Results use `[System.Collections.Generic.List[object]]` for O(1) appends (avoids PS array `+=` realloc)
+- `--open <n>` calls `Start-Process` on the nth result path -- opens with whatever the OS default app is
+- Parameter name collision avoided: JSON file filter is `$JsonFiles` with `[Alias('json')]`; JSON output is `$Jsonout` -- both `-json` and `-jsonout` are unambiguous in PS5.1 splatting
