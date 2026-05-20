@@ -117,6 +117,34 @@
             ]
         },
         {
+            "name": "search",
+            "version": "1.0.0",
+            "aliases": [ "find" ],
+            "displayName": "Search",
+            "description": "Fast file and content search",
+            "script": "lib/search.ps1",
+            "usage": "pt search <query> [--content] [--logs|--json|--code] [--path <dir>] [--limit <n>] [--open <n>] [--jsonout]",
+            "help": [
+                "Search filenames or file contents recursively.",
+                "",
+                "  pt search <query>                  search filenames (supports wildcards: *.json)",
+                "  pt search <query> --content        search inside files, show matching lines",
+                "",
+                "Smart filters (restrict file types):",
+                "  --logs   .log, .txt",
+                "  --json   .json",
+                "  --code   .js, .ts, .cs, .ps1",
+                "",
+                "  --path <dir>         root directory to search (default: current directory)",
+                "  --limit <n>          cap number of results (default: 50)",
+                "  --open <n>           open result number n with default app",
+                "  --excl <list>        comma-separated dirs or filenames to exclude (e.g. node_modules,dist)",
+                "  --jsonout            output results as JSON",
+                "",
+                "Results sorted by last modified (filename mode) or match count (content mode)."
+            ]
+        },
+        {
             "name": "port",
             "version": "1.0.0",
             "aliases": [ "pm" ],
