@@ -16,6 +16,7 @@ A collection of personal PowerShell utility scripts for Windows automation, unif
 | `pt app-uninstaller` | `au`, `apps` | Interactive TUI to browse, select, and uninstall installed apps |
 | `pt port` | `pm` | Inspect, kill, list, watch, and find free ports |
 | `pt env` | `envm` | Manage environment variables, PATH, .env files, and profiles |
+| `pt search` | `find` | Fast recursive file and content search |
 
 ---
 
@@ -55,6 +56,7 @@ scripts/
     app-uninstaller.ps1
     port-manager.ps1
     env-manager.ps1
+    search.ps1
   pt.ps1            command router
   pt.bat            CMD launcher
   commands.json     command registry (names, aliases, versions, help)
@@ -75,6 +77,7 @@ lib\
   app-uninstaller.ps1
   port-manager.ps1
   env-manager.ps1
+  search.ps1
 pt.ps1
 pt.bat
 commands.json
@@ -424,3 +427,71 @@ pt env --generate dotnet    # ASP.NET Core starter
 ```
 
 Writes a `.env` file in the current directory. Load it with `pt env --load .env`.
+
+---
+
+## search
+
+Fast recursive file and content search with smart type filters and noise-directory skipping.
+
+```powershell
+pt search readme.md
+pt search readme.md --path "D:\Projects"
+pt search "TODO" --content --code
+pt search error --logs --path "C:\Logs" --limit 20
+pt find *.json --path "D:\Projects\MyApp"
+```
+
+### Commands
+
+| Command | Description |
+|---|---|
+| `pt search <query>` | Search filenames recursively (supports wildcards: `*.json`) |
+| `pt search <query> --content` | Search inside files, show matching lines with line numbers |
+
+### Flags
+
+| Flag | Description |
+|---|---|
+| `--content` | Switch to content search mode |
+| `--logs` | Restrict to `.log`, `.txt` files |
+| `--json` | Restrict to `.json` files |
+| `--code` | Restrict to `.js`, `.ts`, `.cs`, `.ps1` files |
+| `--path <dir>` | Root directory to search. Default: current directory |
+| `--limit <n>` | Cap number of results. Default: `50` |
+| `--open <n>` | Open result number `n` with its default app |
+| `--excl <list>` | Comma-separated directory or filename patterns to exclude (e.g. `node_modules,dist`) |
+| `--jsonout` | Output results as JSON |
+
+### Output
+
+```
+  Found 3 result(s)  [mode: filename]
+
+  [1] AutoFlow\README.md        2026-05-11 12:03
+  [2] PowerToys\README.md       2026-05-19 12:05
+  [3] Portfolio\README.md       2026-05-06 23:25
+```
+
+Content mode shows matching lines:
+
+```
+  Found 2 result(s)  [mode: content]
+
+  [1] src\app.ts  2026-05-18 09:14  3 match(es)
+  Line 12: // TODO: add auth middleware
+  Line 45: // TODO: rate limiting
+  Line 89: // TODO: error boundary
+```
+
+### Built-in skip list
+
+The following directories are always excluded from traversal:
+
+`node_modules` `.git` `.svn` `.vs` `.idea` `bin` `obj` `dist` `out` `build` `.next` `.nuget` `packages` `vendor` `__pycache__` `.cache`
+
+Use `--excl` to add more at runtime:
+
+```powershell
+pt search config --path "D:\Projects" --excl dist,coverage
+```
