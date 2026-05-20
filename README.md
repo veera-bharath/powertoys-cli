@@ -17,6 +17,7 @@ A collection of personal PowerShell utility scripts for Windows automation, unif
 | `pt port` | `pm` | Inspect, kill, list, watch, and find free ports |
 | `pt env` | `envm` | Manage environment variables, PATH, .env files, and profiles |
 | `pt search` | `find` | Fast recursive file and content search |
+| `pt run` | `workflow` | Execute predefined workflow scripts *(in progress)* |
 
 ---
 
@@ -494,4 +495,102 @@ Use `--excl` to add more at runtime:
 
 ```powershell
 pt search config --path "D:\Projects" --excl dist,coverage
+```
+
+---
+
+## run *(in progress)*
+
+> **Note:** This command is still under active development. Core functionality works but some features may change.
+
+Execute named workflows defined in a `.pt.json` file in your project directory, or a global `pt.config.json` in the install directory.
+
+```powershell
+pt run dev
+pt run build --dry
+pt run deploy --continue
+pt run dev --env staging
+pt run --list
+```
+
+### Config file
+
+Create `.pt.json` in your project root:
+
+```json
+{
+  "scripts": {
+    "dev": [
+      "npm install",
+      "npm run dev"
+    ],
+    "build": [
+      { "cmd": "npm ci", "if": "node_modules missing" },
+      { "parallel": ["npm run frontend", "npm run backend"] },
+      { "cmd": "dotnet build", "timeout": 120 }
+    ],
+    "lint": ["eslint src", "dotnet format --verify-no-changes"]
+  }
+}
+```
+
+Config is resolved in this order:
+1. `.pt.json` in the current working directory
+2. `pt.config.json` in the install directory (global fallback)
+
+### Commands
+
+| Command | Description |
+|---|---|
+| `pt run <workflow>` | Execute a named workflow |
+| `pt run <workflow> --dry` | Preview all steps without executing |
+| `pt run <workflow> --continue` | Keep running even if a step fails |
+| `pt run <workflow> --env <name>` | Apply a `pt env` profile before running |
+| `pt run --list` | List all workflows defined in the config |
+| `pt run --list --jsonout` | List workflows as JSON |
+
+### Step formats
+
+| Format | Description |
+|---|---|
+| `"command string"` | Simple command, run inline |
+| `{ "cmd": "...", "timeout": 30 }` | Command with a timeout in seconds |
+| `{ "cmd": "...", "if": "<condition>" }` | Conditional step — skipped when condition is false |
+| `{ "parallel": ["cmd1", "cmd2"] }` | Run multiple commands concurrently |
+
+### Condition expressions
+
+Used in the `"if"` field of a step object:
+
+| Expression | Runs when |
+|---|---|
+| `node_modules missing` | `node_modules` directory does not exist |
+| `dir missing: <path>` | The specified directory does not exist |
+| `file missing: <path>` | The specified file does not exist |
+| `env: <VAR>` | Environment variable is set |
+| `env missing: <VAR>` | Environment variable is not set |
+
+### Output
+
+```
+  Workflow: build
+  --------------------------------------------------------
+
+  Step 1 / 3
+  [>>]  Running: npm ci
+npm: ...
+  [OK]  Success (4.2s)
+
+  Step 2 / 3
+  [||]  Parallel group (2 commands):
+         npm run frontend
+         npm run backend
+  [OK]  Parallel group complete (8.1s)
+
+  Step 3 / 3
+  [>>]  Running: dotnet build
+  [OK]  Success (12.3s)
+
+  --------------------------------------------------------
+  [OK]  Workflow 'build' completed successfully (3 step(s)).
 ```
