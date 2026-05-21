@@ -503,7 +503,7 @@ pt search config --path "D:\Projects" --excl dist,coverage
 
 > **Note:** This command is still under active development. Core functionality works but some features may change.
 
-Execute named workflows defined in a `.pt.json` file in your project directory, or a global `pt.config.json` in the install directory.
+Execute named workflows defined in a `run.config.json` file in your project directory, or a global `pt.config.json` in the install directory.
 
 ```powershell
 pt run dev
@@ -515,7 +515,7 @@ pt run --list
 
 ### Config file
 
-Create `.pt.json` in your project root:
+Create `run.config.json` in your project root:
 
 ```json
 {
@@ -535,7 +535,7 @@ Create `.pt.json` in your project root:
 ```
 
 Config is resolved in this order:
-1. `.pt.json` in the current working directory
+1. `run.config.json` in the current working directory
 2. `pt.config.json` in the install directory (global fallback)
 
 ### Commands

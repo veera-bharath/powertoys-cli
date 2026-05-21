@@ -149,11 +149,11 @@
             "version": "1.0.0",
             "aliases": [ "workflow" ],
             "displayName": "Run",
-            "description": "Execute predefined workflow scripts from .pt.json",
+            "description": "Execute predefined workflow scripts from run.config.json",
             "script": "lib/run.ps1",
             "usage": "pt run <workflow> [--dry] [--continue] [--env <profile>] | pt run --list",
             "help": [
-                "Execute named workflows defined in .pt.json (current dir) or pt.config.json (install dir).",
+                "Execute named workflows defined in run.config.json (current dir) or pt.config.json (install dir).",
                 "",
                 "  pt run <workflow>               run a workflow",
                 "  pt run <workflow> --dry          preview steps without executing",
@@ -162,7 +162,7 @@
                 "  pt run --list                    list all available workflows",
                 "  pt run --list --jsonout          list workflows as JSON",
                 "",
-                "Config file (.pt.json) format:",
+                "Config file (run.config.json) format:",
                 "  {",
                 "    \"scripts\": {",
                 "      \"dev\": [",
@@ -189,7 +189,7 @@
                 "  env: <VAR>                 true when env variable is set",
                 "  env missing: <VAR>         true when env variable is not set",
                 "",
-                "Config priority: .pt.json (current dir) > pt.config.json (install dir)."
+                "Config priority: run.config.json (current dir) > pt.config.json (install dir)."
             ]
         },
         {

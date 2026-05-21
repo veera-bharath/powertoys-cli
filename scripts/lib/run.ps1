@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Run -- execute predefined workflow scripts from .pt.json or pt.config.json.
+    Run -- execute predefined workflow scripts from run.config.json or pt.config.json.
 
     run <workflow>                 execute a named workflow
     run <workflow> --dry           preview steps without executing
@@ -9,7 +9,8 @@
     run --list                     list available workflows
     run --list --jsonout           list workflows as JSON
 
-    Step retry: { "cmd": "...", "retry": 3 }  retries up to 3 times on failure
+    Config files: run.config.json (project) or pt.config.json (global install dir)
+    Step retry:   { "cmd": "...", "retry": 3 }  retries up to 3 times on failure
 #>
 
 [CmdletBinding()]
@@ -51,8 +52,8 @@ function Clip([string]$s, [int]$w) {
 # ---------------------------------------------------------------------------
 
 function Load-Config {
-    # Priority 1: .pt.json in the current working directory
-    $localPath = Join-Path (Get-Location).Path '.pt.json'
+    # Priority 1: run.config.json in the current working directory
+    $localPath = Join-Path (Get-Location).Path 'run.config.json'
     if (Test-Path $localPath) {
         try {
             $obj = Get-Content $localPath -Raw | ConvertFrom-Json
@@ -60,7 +61,7 @@ function Load-Config {
                 return [PSCustomObject]@{ Source = $localPath; Data = $obj }
             }
         } catch {
-            Write-Err "Failed to parse .pt.json: $_"
+            Write-Err "Failed to parse run.config.json: $_"
             exit 1
         }
     }
@@ -436,7 +437,7 @@ $cfg = Load-Config
 if ($List) {
     if (-not $cfg) {
         Write-Blank
-        Write-Warn "No config found. Create .pt.json in your project or pt.config.json in the install directory."
+        Write-Warn "No config found. Create run.config.json in your project or pt.config.json in the install directory."
         Write-Blank
         exit 0
     }
@@ -455,9 +456,9 @@ if (-not $ScriptName) {
 
 if (-not $cfg) {
     Write-Blank
-    Write-Err "No config found. Create .pt.json in your project or pt.config.json in the install directory."
+    Write-Err "No config found. Create run.config.json in your project or pt.config.json in the install directory."
     Write-Blank
-    Write-Host "  Example .pt.json:" -ForegroundColor DarkGray
+    Write-Host "  Example run.config.json:" -ForegroundColor DarkGray
     Write-Host '  { "scripts": { "dev": ["npm install", "npm run dev"] } }' -ForegroundColor DarkGray
     Write-Blank
     exit 1
