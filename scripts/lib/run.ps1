@@ -8,6 +8,8 @@
     run <workflow> --env <name>    apply environment profile first
     run --list                     list available workflows
     run --list --jsonout           list workflows as JSON
+
+    Step retry: { "cmd": "...", "retry": 3 }  retries up to 3 times on failure
 #>
 
 [CmdletBinding()]
@@ -98,7 +100,7 @@ function Resolve-Step ([object]$raw) {
         }
     }
 
-    # Object step: { "cmd": "...", "if": "...", "timeout": 30 }
+    # Object step: { "cmd": "...", "if": "...", "timeout": 30, "retry": 3 }
     if ($null -ne $raw.cmd) {
         $cond = $raw.PSObject.Properties['if']
         return [PSCustomObject]@{
@@ -106,6 +108,7 @@ function Resolve-Step ([object]$raw) {
             Cmd       = [string]$raw.cmd
             Condition = if ($null -ne $cond) { [string]$cond.Value } else { $null }
             Timeout   = if ($null -ne $raw.timeout) { [int]$raw.timeout } else { 0 }
+            Retry     = if ($null -ne $raw.retry)   { [int]$raw.retry   } else { 0 }
         }
     }
 
@@ -348,7 +351,18 @@ function Invoke-Workflow {
                 Write-Skip "Condition not met, skipping: $($step.Cmd)"
                 continue
             }
-            $code = Invoke-Step -Cmd $step.Cmd -Timeout $step.Timeout -IsDry $IsDry
+
+            $maxAttempts = 1 + [math]::Max(0, $step.Retry)
+            $attempt     = 0
+            $code        = 1
+
+            while ($attempt -lt $maxAttempts -and $code -ne 0) {
+                if ($attempt -gt 0) {
+                    Write-Warn "Retry $attempt / $($step.Retry): $($step.Cmd)"
+                }
+                $code = Invoke-Step -Cmd $step.Cmd -Timeout $step.Timeout -IsDry $IsDry
+                $attempt++
+            }
         }
 
         if ($code -ne 0) {
