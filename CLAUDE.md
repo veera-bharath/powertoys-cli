@@ -18,6 +18,7 @@ scripts/
     port-manager.ps1        Inspect, kill, list, watch, and find free ports
     env-manager.ps1         Manage environment variables, PATH, .env files, and profiles
     search.ps1              Fast recursive file and content search
+    json.ps1                Format, minify, validate, query, and patch JSON files [in progress]
   pt.ps1                    Command router -- reads commands.json, delegates to lib scripts
   pt.bat                    Thin CMD launcher for pt.ps1
   commands.json             Command registry: name, version, aliases, script path, help text
@@ -39,6 +40,7 @@ lib\
   port-manager.ps1
   env-manager.ps1
   search.ps1
+  json.ps1
 pt.ps1
 pt.bat
 commands.json
@@ -89,6 +91,13 @@ pt search readme.md --path "D:\Projects"
 pt search "TODO" --content --code --path "D:\Projects\MyApp"
 pt search error --logs --limit 20
 pt search *.json --path "D:\Projects" --excl node_modules,dist
+
+pt json format file.json
+pt json minify file.json
+pt json validate file.json
+pt json query file.json user.address.city
+pt json set file.json user.name "John"
+cat file.json | pt json query user.name
 
 pt run dev
 pt run build --dry
@@ -215,3 +224,13 @@ powershell -ExecutionPolicy Bypass -File scripts\pt.ps1 disk-cleaner -Path "C:\S
 - `Invoke-RemoveStep`: removes by 1-based index; rebuilds array with a `for` loop skipping the target index; saves config
 - `Invoke-EditWorkflow`: interactive `Read-Host` loop; shows `Show-WorkflowDetail`, prompts for step number, then `E` (edit) / `D` (delete) / `Q` (quit); edit prompts for each field individually, blank input keeps the current value; rebuilds and saves the step on confirmation
 - Main dispatch order: `--create` (no config required) -> `--list` with no workflow name -> error if no workflow name -> `--list` with workflow name -> `--add` -> `--remove` -> `--edit` -> execute workflow
+
+### json.ps1 [in progress]
+- Status: core operations (format, minify, validate, query, set) stable; array element mutation and large-file streaming not yet supported
+- Stdin detection: `[Console]::IsInputRedirected` is guarded by a file-presence check on `$Arg1` -- if `$Arg1` ends with `.json` or resolves to an existing file, stdin is skipped; this prevents `[Console]::In.ReadToEnd()` from blocking in non-interactive shells
+- When stdin is active, positional args shift: `$Arg1` = key path, `$Arg2` = value (instead of file, key, value)
+- `Query-Json` returns `{Found, Value}` wrapper so a JSON `null` value is distinguishable from a missing key
+- `Set-JsonValue` coerces the raw string value to bool/null/long/double/string before writing; intermediate nodes are created as empty PSCustomObjects if the path doesn't exist
+- All serialisation uses `ConvertTo-Json -Depth 20` to avoid truncation on deeply nested structures
+- File writes use `Set-Content -Encoding utf8` (consistent with run.ps1)
+- Operations that produce output (format, minify, query) write to stdout via `Write-Output` so they are pipeable; set writes status to the host via `Write-Ok`
