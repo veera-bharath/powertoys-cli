@@ -17,7 +17,7 @@ A collection of personal PowerShell utility scripts for Windows automation, unif
 | `pt port` | `pm` | Inspect, kill, list, watch, and find free ports |
 | `pt env` | `envm` | Manage environment variables, PATH, .env files, and profiles |
 | `pt search` | `find` | Fast recursive file and content search |
-| `pt run` | `workflow` | Execute predefined workflow scripts *(in progress)* |
+| `pt run` | `workflow` | Execute predefined workflow scripts from `run.config.json` |
 
 ---
 
@@ -499,9 +499,7 @@ pt search config --path "D:\Projects" --excl dist,coverage
 
 ---
 
-## run *(in progress)*
-
-> **Note:** This command is still under active development. Core functionality works but some features may change.
+## run
 
 Execute named workflows defined in a `run.config.json` file in your project directory, or a global `pt.config.json` in the install directory.
 
@@ -538,7 +536,7 @@ Config is resolved in this order:
 1. `run.config.json` in the current working directory
 2. `pt.config.json` in the install directory (global fallback)
 
-### Commands
+### Execution commands
 
 | Command | Description |
 |---|---|
@@ -549,12 +547,27 @@ Config is resolved in this order:
 | `pt run --list` | List all workflows defined in the config |
 | `pt run --list --jsonout` | List workflows as JSON |
 
+### Workflow management commands
+
+| Command | Description |
+|---|---|
+| `pt run --create <name>` | Create a new empty workflow (creates `run.config.json` if missing) |
+| `pt run <name> --list` | Show all steps in a workflow with their index |
+| `pt run <name> --add --cmd "..."` | Append a step to a workflow |
+| `pt run <name> --add --cmd "..." --cond "<condition>"` | Append a conditional step |
+| `pt run <name> --add --cmd "..." --timeout 30` | Append a step with a timeout (seconds) |
+| `pt run <name> --add --cmd "..." --retry 2` | Append a step that retries up to N times on failure |
+| `pt run <name> --add --parallel "cmd1,cmd2"` | Append a parallel step (comma-separated commands) |
+| `pt run <name> --remove <n>` | Remove step number `n` from the workflow |
+| `pt run <name> --edit` | Interactively edit or delete steps in a workflow |
+
 ### Step formats
 
 | Format | Description |
 |---|---|
 | `"command string"` | Simple command, run inline |
 | `{ "cmd": "...", "timeout": 30 }` | Command with a timeout in seconds |
+| `{ "cmd": "...", "retry": 2 }` | Command retried up to N times on failure |
 | `{ "cmd": "...", "if": "<condition>" }` | Conditional step — skipped when condition is false |
 | `{ "parallel": ["cmd1", "cmd2"] }` | Run multiple commands concurrently |
 
