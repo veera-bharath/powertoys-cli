@@ -90,6 +90,19 @@ pt search "TODO" --content --code --path "D:\Projects\MyApp"
 pt search error --logs --limit 20
 pt search *.json --path "D:\Projects" --excl node_modules,dist
 
+pt run dev
+pt run build --dry
+pt run deploy --continue
+pt run dev --env staging
+pt run --list
+pt run --create build
+pt run build --add --cmd "npm ci" --cond "node_modules missing"
+pt run build --add --cmd "dotnet build" --timeout 120 --retry 2
+pt run build --add --parallel "npm run frontend,npm run backend"
+pt run build --list
+pt run build --remove 2
+pt run build --edit
+
 # From the repo without installing
 powershell -ExecutionPolicy Bypass -File scripts\pt.ps1 help
 powershell -ExecutionPolicy Bypass -File scripts\pt.ps1 disk-cleaner -Path "C:\Some\Dir"
@@ -187,11 +200,18 @@ powershell -ExecutionPolicy Bypass -File scripts\pt.ps1 disk-cleaner -Path "C:\S
 
 ### run.ps1
 - Config priority: `run.config.json` in `(Get-Location).Path` first, then `pt.config.json` resolved via `$PSScriptRoot\..\` (install dir); `Load-Config` returns `$null` if neither exists
-- Step normalization in `Resolve-Step`: plain string -> `{Kind='single'}`, object with `parallel` key -> `{Kind='parallel'}`, object with `cmd` key -> `{Kind='single'}` with optional `Condition` and `Timeout`; `$raw.PSObject.Properties['if'].Value` used to safely read the `if` key (reserved word in PS statement position)
+- `Save-Config` writes back via `ConvertTo-Json -Depth 10 | Set-Content -Encoding utf8`; `New-LocalConfig` creates a blank `run.config.json` with an empty `scripts` object in the current directory
+- Step normalization in `Resolve-Step`: plain string -> `{Kind='single'}`, object with `parallel` key -> `{Kind='parallel'}`, object with `cmd` key -> `{Kind='single'}` with optional `Condition`, `Timeout`, and `Retry`; `$raw.PSObject.Properties['if'].Value` used to safely read the `if` key (reserved word in PS statement position)
 - `Invoke-Step` pipes through `Out-Host` (`Invoke-Expression $Cmd | Out-Host`) to prevent stdout leaking into the function's pipeline return stream -- without this, `$code = Invoke-Step ...` receives an array like `@("output-line", 0)` and `$array -ne 0` is truthy even on success
 - `$global:LASTEXITCODE = 0` is reset before each `Invoke-Expression` call -- cmdlets do not update `$LASTEXITCODE`, so a stale non-zero value from a prior external process bleeds through otherwise
-- Timeout steps use `Start-Job` + `Wait-Job -Timeout`; the job script block receives `$cmd` and `$dir` as arguments and calls `Set-Location $dir` to inherit the working directory (PS jobs start in the user profile by default)
+- Timeout steps use `Start-Job` + `Wait-Job -Timeout`; the job script block receives `$cmd` and `$dir` as arguments and calls `Set-Location $dir` to inherit the working directory (PS jobs start in the user profile by default); param named `$StepTimeout` (not `$Timeout`) to avoid conflict with the top-level `$Timeout` param
 - Parallel steps also use `Start-Job`; output is captured via `2>&1 | Out-String` inside the job and printed after all jobs complete, labeled with the originating command; the parallel group exit code is 0 only if all jobs exit 0
+- Retry loop in `Invoke-Workflow`: `$maxAttempts = 1 + [math]::Max(0, $step.Retry)`; retries only on non-zero exit code; prints attempt number before each retry
 - `--continue` maps to `$KeepGoing`; on step failure the workflow increments `$failCount` and continues instead of returning early; final exit code is non-zero if `$failCount -gt 0`
 - `--env <profile>` resolves `pt.ps1` via `$PSScriptRoot\..\pt.ps1` and calls `& $ptScript env --profile $Env`; failure aborts the workflow before any steps run
 - `Show-Workflows` uses `Get-Member -MemberType NoteProperty` to enumerate workflow names from the `scripts` object returned by `ConvertFrom-Json`
+- `Invoke-Create`: validates name against `^[a-zA-Z][a-zA-Z0-9_-]*$`, rejects duplicates, calls `New-LocalConfig` if no config exists, adds an empty array for the new workflow name
+- `Invoke-AddStep`: `[string]$Parallel` is a comma-separated string (not `[string[]]`) to avoid PS5.1 positional arg binding conflicts; split and trimmed at runtime; requires minimum 2 entries for parallel; validates `--cond` syntax via `Test-ConditionSyntax` (warns but does not block on unrecognized expressions); builds plain string step when no options set, otherwise builds PSCustomObject with `Add-Member -NotePropertyName 'if'` (hashtable literal `@{ if = ... }` is ambiguous with the PS `if` keyword); updates the array via `$cfg.Data.scripts.PSObject.Properties[$name].Value = $newArray`
+- `Invoke-RemoveStep`: removes by 1-based index; rebuilds array with a `for` loop skipping the target index; saves config
+- `Invoke-EditWorkflow`: interactive `Read-Host` loop; shows `Show-WorkflowDetail`, prompts for step number, then `E` (edit) / `D` (delete) / `Q` (quit); edit prompts for each field individually, blank input keeps the current value; rebuilds and saves the step on confirmation
+- Main dispatch order: `--create` (no config required) -> `--list` with no workflow name -> error if no workflow name -> `--list` with workflow name -> `--add` -> `--remove` -> `--edit` -> execute workflow
