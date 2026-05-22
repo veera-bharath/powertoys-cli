@@ -18,6 +18,7 @@ A collection of personal PowerShell utility scripts for Windows automation, unif
 | `pt env` | `envm` | Manage environment variables, PATH, .env files, and profiles |
 | `pt search` | `find` | Fast recursive file and content search |
 | `pt run` | `workflow` | Execute predefined workflow scripts from `run.config.json` |
+| `pt json` | `js` | Format, minify, validate, query, and patch JSON files |
 
 ---
 
@@ -58,6 +59,7 @@ scripts/
     port-manager.ps1
     env-manager.ps1
     search.ps1
+    json.ps1
   pt.ps1            command router
   pt.bat            CMD launcher
   commands.json     command registry (names, aliases, versions, help)
@@ -79,6 +81,7 @@ lib\
   port-manager.ps1
   env-manager.ps1
   search.ps1
+  json.ps1
 pt.ps1
 pt.bat
 commands.json
@@ -606,4 +609,71 @@ npm: ...
 
   --------------------------------------------------------
   [OK]  Workflow 'build' completed successfully (3 step(s)).
+```
+
+---
+
+## json
+
+> **Status: in progress** — core operations stable; array mutation and streaming large files not yet supported.
+
+Format, minify, validate, query, and patch JSON from files or stdin.
+
+```powershell
+pt json format   file.json
+pt json minify   file.json
+pt json validate file.json
+pt json query    file.json user.address.city
+pt json set      file.json user.name "John"
+
+# Pipe support -- stdin replaces the file argument
+cat file.json | pt json format
+cat file.json | pt json query user.address.city
+cat file.json | pt json set user.name "John"
+```
+
+### Operations
+
+| Operation | Description |
+|---|---|
+| `format <file>` | Pretty-print with 4-space indentation |
+| `minify <file>` | Collapse to a single compact line |
+| `validate <file>` | Check JSON syntax; prints error with position on failure |
+| `query <file> <path>` | Extract a value by dot-notation path |
+| `set <file> <path> <value>` | Update a value in-place and save the file |
+
+### Dot-path syntax
+
+Segments are separated by `.`. Numeric segments index into arrays.
+
+| Path | Resolves to |
+|---|---|
+| `user.name` | `"Alice"` |
+| `user.address.city` | `"Seattle"` |
+| `user.scores.0` | First element of the `scores` array |
+| `config.flags.2` | Third element of a nested array |
+
+### Value coercion for `set`
+
+| Input | Stored as |
+|---|---|
+| `true` / `false` | Boolean |
+| `null` | JSON null |
+| `42` / `3.14` | Number |
+| anything else | String |
+
+### Output examples
+
+```
+pt json validate file.json
+  [OK]  Valid JSON  (file.json)
+
+pt json validate bad.json
+  [ERR] Invalid JSON -- Unexpected character ... (line 3, position 5)
+
+pt json query file.json user.address.city
+Seattle
+
+pt json set file.json user.name John
+  [OK]  Saved file.json  -- set user.name = John
 ```
