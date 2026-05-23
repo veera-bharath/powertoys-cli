@@ -522,8 +522,7 @@ Create `run.config.json` in your project root:
 {
   "scripts": {
     "dev": [
-      "npm install",
-      "npm run dev"
+      { "parallel": ["cd 'backend';npm run dev", "cd 'frontend';npm run dev"] }
     ],
     "build": [
       { "cmd": "npm ci", "if": "node_modules missing" },
@@ -572,7 +571,7 @@ Config is resolved in this order:
 | `{ "cmd": "...", "timeout": 30 }` | Command with a timeout in seconds |
 | `{ "cmd": "...", "retry": 2 }` | Command retried up to N times on failure |
 | `{ "cmd": "...", "if": "<condition>" }` | Conditional step — skipped when condition is false |
-| `{ "parallel": ["cmd1", "cmd2"] }` | Run multiple commands concurrently |
+| `{ "parallel": ["cmd1", "cmd2"] }` | Run multiple commands concurrently with live output |
 
 ### Condition expressions
 
@@ -599,8 +598,12 @@ npm: ...
 
   Step 2 / 3
   [||]  Parallel group (2 commands):
-         npm run frontend
-         npm run backend
+    [0] npm run frontend
+    [1] npm run backend
+
+[0] webpack compiled successfully
+[1] Server listening on port 3001
+[0] HMR enabled
   [OK]  Parallel group complete (8.1s)
 
   Step 3 / 3
