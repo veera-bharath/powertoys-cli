@@ -504,7 +504,7 @@ pt search config --path "D:\Projects" --excl dist,coverage
 
 ## run
 
-Execute named workflows defined in a `run.config.json` file in your project directory, or a global `pt.config.json` in the install directory.
+Execute named workflows defined in a `run.config.json` file.
 
 ```powershell
 pt run dev
@@ -516,7 +516,12 @@ pt run --list
 
 ### Config file
 
-Create `run.config.json` in your project root:
+`run.ps1` looks for `run.config.json` in this order:
+
+1. Current working directory — project-local override
+2. `lib\` dir alongside `run.ps1` in the install directory — global default
+
+Create or manage your config with the workflow commands below, or write it by hand:
 
 ```json
 {
@@ -534,10 +539,6 @@ Create `run.config.json` in your project root:
 }
 ```
 
-Config is resolved in this order:
-1. `run.config.json` in the current working directory
-2. `pt.config.json` in the install directory (global fallback)
-
 ### Execution commands
 
 | Command | Description |
@@ -553,7 +554,7 @@ Config is resolved in this order:
 
 | Command | Description |
 |---|---|
-| `pt run --create <name>` | Create a new empty workflow (creates `run.config.json` if missing) |
+| `pt run --create <name>` | Create a new empty workflow (creates `run.config.json` in the install lib dir if missing) |
 | `pt run <name> --list` | Show all steps in a workflow with their index |
 | `pt run <name> --add --cmd "..."` | Append a step to a workflow |
 | `pt run <name> --add --cmd "..." --cond "<condition>"` | Append a conditional step |
