@@ -132,6 +132,8 @@ powershell -ExecutionPolicy Bypass -File scripts\pt.ps1 disk-cleaner -Path "C:\S
 - `$PSScriptRoot` is the base for all path resolution; no hardcoded paths anywhere
 - `--debug` is consumed here and never forwarded; prints command name, resolved script path, and forwarded args
 - Subcommand lookup: exact `name` match first, then `aliases`; typo recovery via substring match
+- Passthrough args are normalized (`--foo` -> `-foo`) before dispatch; PowerShell 5.1 does not recognize double-dash as a named parameter prefix, only single-dash works
+- Child scripts are invoked via `Invoke-Expression` (not array splatting `@passthrough`); array splatting treats every element positionally so named switches like `-create` never bind -- `Invoke-Expression` parses the command string the same way an interactive shell does; value args are single-quoted to protect spaces and `$` signs
 
 ### commands.json
 - Top-level `version` mirrors the overall release; per-command `version` is what `install.ps1` compares
@@ -209,7 +211,7 @@ powershell -ExecutionPolicy Bypass -File scripts\pt.ps1 disk-cleaner -Path "C:\S
 
 ### run.ps1
 - Config priority: `run.config.json` in `(Get-Location).Path` first, then `run.config.json` in `$PSScriptRoot` (lib dir alongside run.ps1); `Load-Config` returns `$null` if neither exists
-- `Save-Config` writes back via `ConvertTo-Json -Depth 10 | Set-Content -Encoding utf8`; `New-LocalConfig` creates a blank `run.config.json` with an empty `scripts` object in the current directory
+- `Save-Config` writes back via `ConvertTo-Json -Depth 10 | Set-Content -Encoding utf8`; `New-LocalConfig` creates a blank `run.config.json` with an empty `scripts` object in `$PSScriptRoot` (lib dir alongside run.ps1), not the current directory
 - Step normalization in `Resolve-Step`: plain string -> `{Kind='single'}`, object with `parallel` key -> `{Kind='parallel'}`, object with `cmd` key -> `{Kind='single'}` with optional `Condition`, `Timeout`, and `Retry`; `$raw.PSObject.Properties['if'].Value` used to safely read the `if` key (reserved word in PS statement position)
 - `Invoke-Step` pipes through `Out-Host` (`Invoke-Expression $Cmd | Out-Host`) to prevent stdout leaking into the function's pipeline return stream -- without this, `$code = Invoke-Step ...` receives an array like `@("output-line", 0)` and `$array -ne 0` is truthy even on success
 - `$global:LASTEXITCODE = 0` is reset before each `Invoke-Expression` call -- cmdlets do not update `$LASTEXITCODE`, so a stale non-zero value from a prior external process bleeds through otherwise
