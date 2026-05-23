@@ -154,14 +154,35 @@ function Query-Json {
 function Set-JsonValue {
     param([object]$Data, [string]$Path, [string]$RawValue)
 
-    # Coerce to the most specific type that fits the raw string
-    $typed = switch -Regex ($RawValue) {
-        '^true$'              { $true;            break }
-        '^false$'             { $false;           break }
-        '^null$'              { $null;            break }
-        '^-?\d+$'             { [long]$RawValue;  break }
-        '^-?\d+\.\d+$'        { [double]$RawValue; break }
-        default               { $RawValue }
+    # Coerce to the most specific type that fits the raw string.
+    # JSON arrays/objects are handled before the switch because PS5.1 enumerates
+    # ConvertFrom-Json output through the pipeline -- @() captures it correctly,
+    # and we distinguish array vs object by the leading character.
+    $trimmed = $RawValue.Trim()
+    $typed   = $null
+    $handled = $false
+
+    if ($trimmed -match '^\[' -or $trimmed -match '^\{') {
+        try {
+            $parsed = $RawValue | ConvertFrom-Json
+            # ConvertFrom-Json returns a PS-decorated Object[] that ConvertTo-Json
+            # misserializes as {value,Count}. Casting to [object[]] strips the extra
+            # members. Assignment must be a statement (not an if-expression) so that
+            # an empty array is not lost in the PS pipeline before capture.
+            if ($trimmed[0] -eq '[') { $typed = [object[]]$parsed } else { $typed = $parsed }
+            $handled = $true
+        } catch {}
+    }
+
+    if (-not $handled) {
+        $typed = switch -Regex ($RawValue) {
+            '^true$'       { $true;             break }
+            '^false$'      { $false;            break }
+            '^null$'       { $null;             break }
+            '^-?\d+$'      { [long]$RawValue;   break }
+            '^-?\d+\.\d+$' { [double]$RawValue; break }
+            default        { $RawValue }
+        }
     }
 
     $parts   = $Path -split '\.'
