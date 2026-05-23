@@ -88,16 +88,16 @@ function Load-Config {
         }
     }
 
-    # Priority 2: pt.config.json in the install directory (alongside pt.ps1)
-    $globalPath = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\pt.config.json'))
-    if (Test-Path $globalPath) {
+    # Priority 2: run.config.json alongside run.ps1 in the lib dir
+    $libPath = Join-Path $PSScriptRoot 'run.config.json'
+    if (Test-Path $libPath) {
         try {
-            $obj = Get-Content $globalPath -Raw | ConvertFrom-Json
+            $obj = Get-Content $libPath -Raw | ConvertFrom-Json
             if ($obj.scripts) {
-                return [PSCustomObject]@{ Source = $globalPath; Data = $obj }
+                return [PSCustomObject]@{ Source = $libPath; Data = $obj }
             }
         } catch {
-            Write-Err "Failed to parse pt.config.json: $_"
+            Write-Err "Failed to parse run.config.json: $_"
             exit 1
         }
     }
@@ -110,7 +110,7 @@ function Save-Config ([PSCustomObject]$cfg) {
 }
 
 function New-LocalConfig {
-    $path = Join-Path (Get-Location).Path 'run.config.json'
+    $path = Join-Path $PSScriptRoot 'run.config.json'
     $obj  = [PSCustomObject]@{ scripts = [PSCustomObject]@{} }
     $obj  | ConvertTo-Json -Depth 10 | Set-Content $path -Encoding utf8
     return [PSCustomObject]@{ Source = $path; Data = $obj }
@@ -577,7 +577,7 @@ function Invoke-Create {
     # Load or create config
     $cfg = Load-Config
     if (-not $cfg) {
-        Write-Info "No run.config.json found -- creating one in the current directory."
+        Write-Info "No run.config.json found -- creating one in the install directory."
         $cfg = New-LocalConfig
     }
 

@@ -208,7 +208,7 @@ powershell -ExecutionPolicy Bypass -File scripts\pt.ps1 disk-cleaner -Path "C:\S
 - Parameter name collision avoided: JSON file filter is `$JsonFiles` with `[Alias('json')]`; JSON output is `$Jsonout` -- both `-json` and `-jsonout` are unambiguous in PS5.1 splatting
 
 ### run.ps1
-- Config priority: `run.config.json` in `(Get-Location).Path` first, then `pt.config.json` resolved via `$PSScriptRoot\..\` (install dir); `Load-Config` returns `$null` if neither exists
+- Config priority: `run.config.json` in `(Get-Location).Path` first, then `run.config.json` in `$PSScriptRoot` (lib dir alongside run.ps1); `Load-Config` returns `$null` if neither exists
 - `Save-Config` writes back via `ConvertTo-Json -Depth 10 | Set-Content -Encoding utf8`; `New-LocalConfig` creates a blank `run.config.json` with an empty `scripts` object in the current directory
 - Step normalization in `Resolve-Step`: plain string -> `{Kind='single'}`, object with `parallel` key -> `{Kind='parallel'}`, object with `cmd` key -> `{Kind='single'}` with optional `Condition`, `Timeout`, and `Retry`; `$raw.PSObject.Properties['if'].Value` used to safely read the `if` key (reserved word in PS statement position)
 - `Invoke-Step` pipes through `Out-Host` (`Invoke-Expression $Cmd | Out-Host`) to prevent stdout leaking into the function's pipeline return stream -- without this, `$code = Invoke-Step ...` receives an array like `@("output-line", 0)` and `$array -ne 0` is truthy even on success

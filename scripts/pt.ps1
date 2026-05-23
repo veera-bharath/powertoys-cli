@@ -128,7 +128,9 @@ function Show-CommandHelp ([string]$Name) {
 if ($rawArgs.Count -eq 0) { Show-Help ; exit 0 }
 
 $subcommand  = [string]$rawArgs[0]
-$passthrough = @($rawArgs | Select-Object -Skip 1)
+$passthrough = @($rawArgs | Select-Object -Skip 1 | ForEach-Object {
+    if ($_ -match '^--([a-zA-Z].*)') { "-$($Matches[1])" } else { $_ }
+})
 
 switch ($subcommand) {
     { $_ -in @('help', '--help', '-h', '/?') } {
@@ -174,5 +176,11 @@ if ($ptDebug) {
     Write-Blank
 }
 
-& $scriptPath @passthrough
+$argParts = $passthrough | ForEach-Object {
+    if ($_ -match '^-') { $_ }
+    else { "'" + ($_ -replace "'", "''") + "'" }
+}
+$cmdLine = "& '" + ($scriptPath -replace "'", "''") + "' " + ($argParts -join ' ')
+$global:LASTEXITCODE = 0
+Invoke-Expression $cmdLine
 exit $LASTEXITCODE
