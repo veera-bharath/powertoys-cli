@@ -231,7 +231,9 @@ powershell -ExecutionPolicy Bypass -File scripts\pt.ps1 disk-cleaner -Path "C:\S
 - Stdin detection: `[Console]::IsInputRedirected` is guarded by a file-presence check on `$Arg1` -- if `$Arg1` ends with `.json` or resolves to an existing file, stdin is skipped; this prevents `[Console]::In.ReadToEnd()` from blocking in non-interactive shells
 - When stdin is active, positional args shift: `$Arg1` = key path, `$Arg2` = value (instead of file, key, value)
 - `Query-Json` returns `{Found, Value}` wrapper so a JSON `null` value is distinguishable from a missing key
-- `Set-JsonValue` coerces the raw string value to bool/null/long/double/string before writing; intermediate nodes are created as empty PSCustomObjects if the path doesn't exist
+- `Set-JsonValue` coerces the raw string value to bool/null/long/double/array/object/string before writing; intermediate nodes are created as empty PSCustomObjects if the path doesn't exist
+- JSON array/object literals (`[...]` / `{...}`) are detected by their leading character before the type-switch and parsed via `ConvertFrom-Json`; the result is cast to `[object[]]` for arrays because `ConvertFrom-Json` returns a PS-decorated `Object[]` that `ConvertTo-Json` misserialises as `{value,Count}` without the cast
+- Empty array assignment uses a direct `if` statement (not an `if`-expression) because an empty `[object[]]` output through a PS pipeline expression is silently lost, making the variable capture `$null` instead of `@()`
 - All serialisation uses `ConvertTo-Json -Depth 20` to avoid truncation on deeply nested structures
 - File writes use `Set-Content -Encoding utf8` (consistent with run.ps1)
 - Operations that produce output (format, minify, query) write to stdout via `Write-Output` so they are pipeable; set writes status to the host via `Write-Ok`
