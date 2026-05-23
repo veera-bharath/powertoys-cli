@@ -125,11 +125,16 @@ function Resolve-Step ([object]$raw) {
         return [PSCustomObject]@{ Kind = 'single'; Cmd = $raw; Condition = $null; Timeout = 0; Retry = 0 }
     }
 
-    # Parallel block: { "parallel": ["cmd1", "cmd2"] }
+    # Parallel block: { "parallel": ["cmd1", "cmd2"] } or legacy comma-separated string
     if ($null -ne $raw.parallel) {
+        $cmds = if ($raw.parallel -is [System.Array]) {
+            @($raw.parallel)
+        } else {
+            @($raw.parallel -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' })
+        }
         return [PSCustomObject]@{
             Kind     = 'parallel'
-            Commands = @($raw.parallel)
+            Commands = $cmds
             Timeout  = if ($null -ne $raw.timeout) { [int]$raw.timeout } else { 0 }
             Retry    = 0
         }
@@ -273,69 +278,90 @@ function Invoke-Parallel {
         [bool]$IsDry      = $false
     )
 
+    $palette = @('Cyan', 'Yellow', 'Green', 'Magenta')
+
     Write-Para "Parallel group ($($Commands.Count) commands):"
-    foreach ($c in $Commands) {
-        Write-Host "         $c" -ForegroundColor DarkCyan
+    for ($i = 0; $i -lt $Commands.Count; $i++) {
+        Write-Host ("    [{0}] {1}" -f $i, $Commands[$i]) -ForegroundColor $palette[$i % $palette.Count]
     }
+    Write-Blank
 
     if ($IsDry) {
         Write-Skip "(dry run -- not executed)"
         return 0
     }
 
-    $cwd  = (Get-Location).Path
-    $jobs = [System.Collections.Generic.List[object]]::new()
+    $cwd     = (Get-Location).Path
+    $entries = [System.Collections.Generic.List[object]]::new()
 
-    foreach ($c in $Commands) {
+    for ($i = 0; $i -lt $Commands.Count; $i++) {
+        $c = $Commands[$i]
         $j = Start-Job -ScriptBlock {
             param($cmd, $dir)
             Set-Location $dir
-            $out = Invoke-Expression $cmd 2>&1 | Out-String
-            [PSCustomObject]@{ Cmd = $cmd; Output = $out.Trim(); ExitCode = $LASTEXITCODE }
+            $global:LASTEXITCODE = 0
+            Invoke-Expression $cmd 2>&1
+            $LASTEXITCODE
         } -ArgumentList $c, $cwd
-        $jobs.Add([PSCustomObject]@{ Job = $j; Cmd = $c })
+        $entries.Add([PSCustomObject]@{
+            Job      = $j
+            Cmd      = $c
+            Label    = "[$i]"
+            Color    = $palette[$i % $palette.Count]
+            Done     = $false
+            ExitCode = 0
+        })
     }
 
     $sw      = [System.Diagnostics.Stopwatch]::StartNew()
     $allGood = $true
 
-    foreach ($entry in $jobs) {
-        $remaining = if ($StepTimeout -gt 0) { $StepTimeout - [int]$sw.Elapsed.TotalSeconds } else { -1 }
+    try {
+        while ($true) {
+            $anyRunning = $false
 
-        if ($remaining -eq 0) {
-            Stop-Job  $entry.Job | Out-Null
-            Remove-Job $entry.Job | Out-Null
-            Write-Err "Timed out: $($entry.Cmd)"
-            $allGood = $false
-            continue
+            foreach ($entry in $entries) {
+                if ($entry.Done) { continue }
+
+                if ($StepTimeout -gt 0 -and $sw.Elapsed.TotalSeconds -ge $StepTimeout) {
+                    Stop-Job   $entry.Job -ErrorAction SilentlyContinue | Out-Null
+                    Remove-Job $entry.Job -ErrorAction SilentlyContinue | Out-Null
+                    Write-Err "$($entry.Label) Timed out: $($entry.Cmd)"
+                    $entry.Done     = $true
+                    $entry.ExitCode = 1
+                    $allGood        = $false
+                    continue
+                }
+
+                $chunks = @(Receive-Job $entry.Job -ErrorAction SilentlyContinue)
+                foreach ($line in $chunks) {
+                    if ($line -is [int]) {
+                        $entry.ExitCode = $line
+                    } elseif ($line -is [System.Management.Automation.ErrorRecord]) {
+                        Write-Host "$($entry.Label) $($line.ToString())" -ForegroundColor Red
+                    } else {
+                        Write-Host "$($entry.Label) $line" -ForegroundColor $entry.Color
+                    }
+                }
+
+                if ($entry.Job.State -in @('Completed', 'Failed', 'Stopped')) {
+                    if ($entry.ExitCode -ne 0 -or $entry.Job.State -eq 'Failed') { $allGood = $false }
+                    Remove-Job $entry.Job -ErrorAction SilentlyContinue | Out-Null
+                    $entry.Done = $true
+                } else {
+                    $anyRunning = $true
+                }
+            }
+
+            if (-not $anyRunning) { break }
+            Start-Sleep -Milliseconds 150
         }
-
-        $done = if ($remaining -gt 0) { Wait-Job $entry.Job -Timeout $remaining }
-                else                   { Wait-Job $entry.Job }
-
-        if (-not $done) {
-            Stop-Job  $entry.Job | Out-Null
-            Remove-Job $entry.Job | Out-Null
-            Write-Err "Timed out: $($entry.Cmd)"
-            $allGood = $false
-            continue
-        }
-
-        $result = Receive-Job $entry.Job
-        Remove-Job $entry.Job | Out-Null
-
-        if ($result -and $result.Output) {
-            Write-Host ""
-            Write-Host "  --- $($result.Cmd) ---" -ForegroundColor DarkGray
-            Write-Host $result.Output -ForegroundColor DarkGray
-        }
-
-        if ($result -and $result.ExitCode -eq 0) {
-            Write-Ok "Done: $($entry.Cmd)"
-        } else {
-            $code = if ($result) { $result.ExitCode } else { 1 }
-            Write-Err "Failed (exit $code): $($entry.Cmd)"
-            $allGood = $false
+    } finally {
+        foreach ($entry in $entries) {
+            if (-not $entry.Done) {
+                Stop-Job   $entry.Job -ErrorAction SilentlyContinue | Out-Null
+                Remove-Job $entry.Job -ErrorAction SilentlyContinue | Out-Null
+            }
         }
     }
 
