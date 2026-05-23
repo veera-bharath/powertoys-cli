@@ -18,7 +18,7 @@ scripts/
     port-manager.ps1        Inspect, kill, list, watch, and find free ports
     env-manager.ps1         Manage environment variables, PATH, .env files, and profiles
     search.ps1              Fast recursive file and content search
-    json.ps1                Format, minify, validate, query, and patch JSON files [in progress]
+    json.ps1                Format, minify, validate, query, and patch JSON files
   pt.ps1                    Command router -- reads commands.json, delegates to lib scripts
   pt.bat                    Thin CMD launcher for pt.ps1
   commands.json             Command registry: name, version, aliases, script path, help text
@@ -226,8 +226,7 @@ powershell -ExecutionPolicy Bypass -File scripts\pt.ps1 disk-cleaner -Path "C:\S
 - `Invoke-EditWorkflow`: interactive `Read-Host` loop; shows `Show-WorkflowDetail`, prompts for step number, then `E` (edit) / `D` (delete) / `Q` (quit); edit prompts for each field individually, blank input keeps the current value; rebuilds and saves the step on confirmation
 - Main dispatch order: `--create` (no config required) -> `--list` with no workflow name -> error if no workflow name -> `--list` with workflow name -> `--add` -> `--remove` -> `--edit` -> execute workflow
 
-### json.ps1 [in progress]
-- Status: core operations (format, minify, validate, query, set) stable; array element mutation and large-file streaming not yet supported
+### json.ps1
 - Stdin detection: `[Console]::IsInputRedirected` is guarded by a file-presence check on `$Arg1` -- if `$Arg1` ends with `.json` or resolves to an existing file, stdin is skipped; this prevents `[Console]::In.ReadToEnd()` from blocking in non-interactive shells
 - When stdin is active, positional args shift: `$Arg1` = key path, `$Arg2` = value (instead of file, key, value)
 - `Query-Json` returns `{Found, Value}` wrapper so a JSON `null` value is distinguishable from a missing key

@@ -618,8 +618,6 @@ npm: ...
 
 ## json
 
-> **Status: in progress** — core operations stable; array mutation and streaming large files not yet supported.
-
 Format, minify, validate, query, and patch JSON from files or stdin.
 
 ```powershell
