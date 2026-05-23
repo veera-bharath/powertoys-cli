@@ -663,7 +663,17 @@ Segments are separated by `.`. Numeric segments index into arrays.
 | `true` / `false` | Boolean |
 | `null` | JSON null |
 | `42` / `3.14` | Number |
+| `[...]` | JSON array |
+| `{...}` | JSON object |
 | anything else | String |
+
+JSON arrays and objects are parsed via `ConvertFrom-Json` and stored as native structures. Pass them in single quotes to preserve the inner double quotes:
+
+```powershell
+pt json set file.json tags '[]'
+pt json set file.json scores '[1,2,3]'
+pt json set file.json address '{"city":"Seattle"}'
+```
 
 ### Output examples
 
