@@ -19,6 +19,7 @@ scripts/
     env-manager.ps1         Manage environment variables, PATH, .env files, and profiles
     search.ps1              Fast recursive file and content search
     json.ps1                Format, minify, validate, query, and patch JSON files
+    file-locksmith.ps1      Show and unlock processes holding a file open
   pt.ps1                    Command router -- reads commands.json, delegates to lib scripts
   pt.bat                    Thin CMD launcher for pt.ps1
   commands.json             Command registry: name, version, aliases, script path, help text
@@ -41,6 +42,7 @@ lib\
   env-manager.ps1
   search.ps1
   json.ps1
+  file-locksmith.ps1
 pt.ps1
 pt.bat
 commands.json
@@ -98,6 +100,10 @@ pt json validate file.json
 pt json query file.json user.address.city
 pt json set file.json user.name "John"
 cat file.json | pt json query user.name
+
+pt file-locksmith "C:\Some\File.xlsx"
+pt fl "C:\Some\File.xlsx" --kill --force
+pt lock "C:\Some\Dir" --json
 
 pt run dev
 pt run build --dry
@@ -238,3 +244,14 @@ powershell -ExecutionPolicy Bypass -File scripts\pt.ps1 disk-cleaner -Path "C:\S
 - All serialisation uses `ConvertTo-Json -Depth 20` to avoid truncation on deeply nested structures
 - File writes use `Set-Content -Encoding utf8` (consistent with run.ps1)
 - Operations that produce output (format, minify, query) write to stdout via `Write-Output` so they are pipeable; set writes status to the host via `Write-Ok`
+
+### file-locksmith.ps1
+- Detection via the Windows Restart Manager API (`rstrtmgr.dll`), called through `Add-Type -TypeDefinition` C# `DllImport` -- the first P/Invoke in this repo (`disk-cleaner.ps1`'s `Microsoft.VisualBasic.FileIO` is not a pattern fit for this)
+- `Get-LockingProcesses`: `RmStartSession` -> `RmRegisterResources` (single file) -> `RmGetList` (two-call pattern: first call with `pnProcInfo=0` to read `pnProcInfoNeeded`, then re-call with an `RM_PROCESS_INFO[]` sized to that count if `ERROR_MORE_DATA` (234) is returned) -> `RmEndSession` in a `finally` block
+- `ApplicationType` int is decoded via the `$RM_APP_TYPE` lookup table (MainWindow/OtherWindow/Service/Explorer/Console/Critical/Unknown); `ProcessStartTime` `FILETIME` is reassembled from `dwHighDateTime`/`dwLowDateTime` and converted via `[DateTime]::FromFileTime`
+- Process names enriched via PID-cached `Get-Process`, same pattern as `port-manager.ps1`
+- Single-element-array gotcha: `Get-LockingProcesses` results are re-wrapped with `@(...)` at every call site -- PowerShell unwraps a one-element array returned from a function, so `$data.Count` would otherwise be `$null`
+- File mode: `Resolve-Path`/`Get-Item` resolves the path; not-locked vs locked detail cards (PID, Process, App Name, Type, Started) styled like `port-manager.ps1`'s `Write-ConnDetail`
+- `--kill`: same "Type YES to confirm" flow as `port-manager.ps1`'s `Invoke-Kill`, including the Access-Denied message detection; `--force` skips the prompt
+- Directory mode (`Invoke-ViewDirectory`): `Get-ChildItem -File` (top-level only, not recursive) calls `Get-LockingProcesses` once per file and renders a STATUS/FILE/PROCESS(ES) table (green=free, red=LOCKED); `--kill` is rejected on a directory
+- `--json` uses `ConvertTo-Json -InputObject $data` (not piped) so an empty array serialises as `[]` instead of producing no output
