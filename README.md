@@ -15,6 +15,7 @@ A collection of personal PowerShell utility scripts for Windows automation, unif
 | `pt disk-cleaner` | `dc`, `clean` | Analyze disk usage, find duplicates and large files |
 | `pt app-uninstaller` | `au`, `apps` | Interactive TUI to browse, select, and uninstall installed apps |
 | `pt port` | `pm` | Inspect, kill, list, watch, and find free ports |
+| `pt file-locksmith` | `fl`, `lock` | Show and unlock processes holding a file open |
 | `pt env` | `envm` | Manage environment variables, PATH, .env files, and profiles |
 | `pt search` | `find` | Fast recursive file and content search |
 | `pt run` | `workflow` | Execute predefined workflow scripts from `run.config.json` |
@@ -60,6 +61,7 @@ scripts/
     env-manager.ps1
     search.ps1
     json.ps1
+    file-locksmith.ps1
   pt.ps1            command router
   pt.bat            CMD launcher
   commands.json     command registry (names, aliases, versions, help)
@@ -82,6 +84,7 @@ lib\
   env-manager.ps1
   search.ps1
   json.ps1
+  file-locksmith.ps1
 pt.ps1
 pt.bat
 commands.json
@@ -362,6 +365,52 @@ pt port --free
 | Red | `Established` |
 | Yellow | `TimeWait` / `CloseWait` |
 | Gray | Other states |
+
+---
+
+## file-locksmith
+
+Shows which process(es) have a file open (locked), using the Windows Restart Manager API — the same mechanism behind "this file is in use by..." dialogs. Can also terminate the locking process(es).
+
+```powershell
+pt file-locksmith "C:\Reports\budget.xlsx"
+pt fl "C:\Reports\budget.xlsx" --kill
+pt lock "C:\Reports" --json
+```
+
+### Commands
+
+| Command | Description |
+|---|---|
+| `<file>` | Show process(es) currently locking the file, or report it's free |
+| `<file> --kill` | Terminate the locking process(es) — prompts `YES` to confirm |
+| `<file> --kill --force` | Kill without confirmation prompt |
+| `<dir>` | List top-level files in the directory with locked status (not recursive, no `--kill`) |
+| `--json` | Output as JSON (combine with any command) |
+
+### File output
+
+```
+  --------------------------------------------------------
+  PID       : 8916
+  Process   : EXCEL
+  App Name  : Microsoft Excel
+  Type      : MainWindow
+  Started   : 2026-06-14 19:09:33
+  --------------------------------------------------------
+  1 process(es) holding this file open
+```
+
+### Directory output
+
+```
+  STATUS    FILE                                      PROCESS(ES)
+  --------  ----------------------------------------  ------------------------------
+  free      free.txt                                  -
+  LOCKED    locked.txt                                EXCEL (8916)
+
+  2 file(s) checked, 1 locked
+```
 
 ---
 
