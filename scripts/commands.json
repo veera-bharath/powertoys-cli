@@ -253,6 +253,32 @@
                 "",
                 "Color coding: Green=LISTEN, Red=ESTABLISHED, Yellow=TIME_WAIT/CLOSE_WAIT"
             ]
+        },
+        {
+            "name": "file-locksmith",
+            "version": "1.0.0",
+            "aliases": [ "fl", "lock" ],
+            "displayName": "FileLocksmith",
+            "description": "Show and unlock processes holding a file open",
+            "script": "lib/file-locksmith.ps1",
+            "usage": "pt file-locksmith <path> [--kill] [--force] [--json]",
+            "help": [
+                "Shows which process(es) currently have a file open (locked), using the",
+                "Windows Restart Manager API -- the same mechanism behind 'this file is",
+                "in use by...' dialogs.",
+                "",
+                "  pt file-locksmith <file>                  show processes locking the file",
+                "  pt file-locksmith <file> --kill           terminate locking process(es) (confirms first)",
+                "  pt file-locksmith <file> --kill --force   skip confirmation",
+                "  pt file-locksmith <dir>                   list files in the directory with locked status",
+                "  pt file-locksmith <path> --json           output as JSON",
+                "",
+                "If no process has the file open, reports that it is free to",
+                "move/rename/delete.",
+                "",
+                "Directory mode checks top-level files only (not recursive) and does",
+                "not support --kill."
+            ]
         }
     ]
 }
